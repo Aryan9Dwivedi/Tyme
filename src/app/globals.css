@@ -1,0 +1,57 @@
+@import "tailwindcss";
+
+:root {
+  --background: #f4ede2;
+  --foreground: #162033;
+  --surface: #fffaf2;
+  --surface-strong: #ffffff;
+  --border: #d7d1c8;
+  --muted: #5f6c78;
+  --brand: #ff6b35;
+  --brand-strong: #12355b;
+  --accent: #2c8f7c;
+  --font-sans-local: "Aptos", "Trebuchet MS", "Segoe UI", sans-serif;
+  --font-mono-local: "Consolas", "SFMono-Regular", "Liberation Mono", monospace;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-surface: var(--surface);
+  --color-surface-strong: var(--surface-strong);
+  --color-border: var(--border);
+  --color-muted: var(--muted);
+  --color-brand: var(--brand);
+  --color-brand-strong: var(--brand-strong);
+  --color-accent: var(--accent);
+  --font-sans: var(--font-sans-local);
+  --font-mono: var(--font-mono-local);
+}
+
+* {
+  box-sizing: border-box;
+  border-color: var(--border);
+}
+
+body {
+  min-height: 100vh;
+  background:
+    radial-gradient(circle at top left, #fff9ef 0%, transparent 28%),
+    radial-gradient(circle at top right, #dff2ea 0%, transparent 24%),
+    linear-gradient(180deg, #f8f1e6 0%, #f4ede2 100%);
+  color: var(--foreground);
+  font-family: var(--font-sans-local);
+}
+
+a {
+  color: inherit;
+  text-decoration: none;
+}
+
+::selection {
+  background: rgba(255, 107, 53, 0.18);
+}
+
+main {
+  width: 100%;
+}

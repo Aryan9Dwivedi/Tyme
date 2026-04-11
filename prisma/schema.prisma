@@ -1,0 +1,117 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+enum UserRole {
+  ADMIN
+  USER
+  CAPTAIN
+}
+
+enum TaskType {
+  VOLUNTEER
+  TOKEN_FUNDED
+}
+
+enum TaskStatus {
+  OPEN
+  ASSIGNED
+  COMPLETED
+  CANCELLED
+}
+
+enum TaskUrgency {
+  LOW
+  MEDIUM
+  HIGH
+}
+
+enum TransactionDirection {
+  CREDIT
+  DEBIT
+}
+
+model User {
+  id               String       @id @default(cuid())
+  name             String
+  email            String       @unique
+  role             UserRole     @default(USER)
+  tasksCreated     Task[]       @relation("CreatorTasks")
+  assignmentsTaken Assignment[] @relation("CaptainAssignments")
+  wallet           Wallet?
+  ratingsGiven     Rating[]     @relation("AuthorRatings")
+  ratingsReceived  Rating[]     @relation("TargetRatings")
+  createdAt        DateTime     @default(now())
+  updatedAt        DateTime     @updatedAt
+}
+
+model Task {
+  id            String      @id @default(cuid())
+  title         String
+  description   String
+  category      String
+  taskType      TaskType
+  status        TaskStatus  @default(OPEN)
+  urgency       TaskUrgency @default(MEDIUM)
+  tokenBudget   Int         @default(0)
+  locationLabel String
+  latitude      Float
+  longitude     Float
+  radiusKm      Float       @default(5)
+  creatorId     String
+  creator       User        @relation("CreatorTasks", fields: [creatorId], references: [id])
+  assignment    Assignment?
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
+}
+
+model Assignment {
+  id          String    @id @default(cuid())
+  taskId      String    @unique
+  captainId   String
+  acceptedAt  DateTime?
+  completedAt DateTime?
+  task        Task      @relation(fields: [taskId], references: [id])
+  captain     User      @relation("CaptainAssignments", fields: [captainId], references: [id])
+  rating      Rating?
+  createdAt   DateTime  @default(now())
+}
+
+model Wallet {
+  id            String        @id @default(cuid())
+  ownerId       String        @unique
+  owner         User          @relation(fields: [ownerId], references: [id])
+  solanaAddress String?       @unique
+  balanceTokens Int           @default(0)
+  transactions  Transaction[]
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+}
+
+model Transaction {
+  id        String               @id @default(cuid())
+  walletId  String
+  direction TransactionDirection
+  amount    Int
+  reason    String
+  wallet    Wallet               @relation(fields: [walletId], references: [id])
+  createdAt DateTime             @default(now())
+}
+
+model Rating {
+  id           String     @id @default(cuid())
+  assignmentId String     @unique
+  authorId     String
+  targetId     String
+  score        Int
+  note         String?
+  assignment   Assignment @relation(fields: [assignmentId], references: [id])
+  author       User       @relation("AuthorRatings", fields: [authorId], references: [id])
+  target       User       @relation("TargetRatings", fields: [targetId], references: [id])
+  createdAt    DateTime   @default(now())
+}
