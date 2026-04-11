@@ -23,3 +23,11 @@ Use this file after a task is completed and merged or ready to merge. Keep entri
 ## Completed Entries
 
 Add new items below this line.
+
+### 2026-04-11 - Initial hackathon starter scaffold
+- Owner: Codex
+- Branch: `main`
+- Area: project bootstrap, docs, starter routes, recommendation mock, git setup
+- Files touched: repo root docs, `src/app`, `src/features`, `src/components`, `src/server`, `src/types`, `prisma`
+- Validation: `npm run check`, `npm run build`
+- Notes: Local repo initialized and pushed to `origin/main`
