@@ -1,12 +1,3 @@
-# TimeBridge Starter
-
-TimeBridge is a hackathon-ready boilerplate for a community help platform built around the theme of time. It gives your team a clean web foundation for:
-
-- a landing page and product story
-- separate admin, user, and captain workspaces
-- a mock recommendation engine you can evolve into the real matching system
-- clean domain boundaries so three people can work in parallel without chaos
-
 ## Stack
 
 - Next.js App Router
