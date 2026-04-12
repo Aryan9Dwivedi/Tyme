@@ -3,8 +3,7 @@ generator client {
 }
 
 datasource db {
-  provider = "sqlite"
-  url      = env("DATABASE_URL")
+  provider = "postgresql"
 }
 
 enum UserRole {
@@ -13,16 +12,37 @@ enum UserRole {
   CAPTAIN
 }
 
+enum UserStatus {
+  ACTIVE
+  PENDING_REVIEW
+  SUSPENDED
+}
+
+enum TaskCategory {
+  ERRANDS
+  MOBILITY
+  WELLNESS
+  LEARNING
+  HOUSEHOLD
+  DELIVERY
+  OTHER
+}
+
 enum TaskType {
   VOLUNTEER
   TOKEN_FUNDED
 }
 
 enum TaskStatus {
+  DRAFT
   OPEN
+  MATCHING
+  OFFERED
   ASSIGNED
+  IN_PROGRESS
   COMPLETED
   CANCELLED
+  EXPIRED
 }
 
 enum TaskUrgency {
@@ -31,87 +51,245 @@ enum TaskUrgency {
   HIGH
 }
 
+enum AvailabilityStatus {
+  ONLINE
+  BUSY
+  OFFLINE
+}
+
+enum OfferStatus {
+  PENDING
+  ACCEPTED
+  DECLINED
+  EXPIRED
+  WITHDRAWN
+}
+
+enum AssignmentStatus {
+  PENDING_START
+  ACTIVE
+  COMPLETED
+  CANCELLED
+}
+
+enum WalletNetwork {
+  SOLANA_DEVNET
+  SOLANA_MAINNET
+}
+
 enum TransactionDirection {
   CREDIT
   DEBIT
 }
 
+enum TransactionType {
+  FUNDING
+  ESCROW_LOCK
+  REWARD_PAYOUT
+  REFUND
+  MANUAL_ADJUSTMENT
+}
+
+enum TransactionStatus {
+  PENDING
+  CONFIRMED
+  FAILED
+}
+
 model User {
-  id               String       @id @default(cuid())
+  id               String          @id @default(uuid())
   name             String
-  email            String       @unique
-  role             UserRole     @default(USER)
-  tasksCreated     Task[]       @relation("CreatorTasks")
-  assignmentsTaken Assignment[] @relation("CaptainAssignments")
+  email            String          @unique
+  phone            String?
+  avatarUrl        String?
+  role             UserRole        @default(USER)
+  status           UserStatus      @default(ACTIVE)
+  tasksCreated     Task[]          @relation("CreatorTasks")
+  taskOffers       TaskOffer[]     @relation("CaptainOffers")
+  assignmentsTaken Assignment[]    @relation("CaptainAssignments")
+  captainProfile   CaptainProfile?
   wallet           Wallet?
-  ratingsGiven     Rating[]     @relation("AuthorRatings")
-  ratingsReceived  Rating[]     @relation("TargetRatings")
-  createdAt        DateTime     @default(now())
-  updatedAt        DateTime     @updatedAt
+  ratingsGiven     Rating[]        @relation("AuthorRatings")
+  ratingsReceived  Rating[]        @relation("TargetRatings")
+  createdAt        DateTime        @default(now())
+  updatedAt        DateTime        @updatedAt
+
+  @@index([role, status])
+  @@index([createdAt])
+}
+
+model CaptainProfile {
+  id                 String             @id @default(uuid())
+  userId             String             @unique
+  headline           String?
+  bio                String?
+  availabilityStatus AvailabilityStatus @default(OFFLINE)
+  availabilityWindow String?
+  isAvailableNow     Boolean            @default(false)
+  trustScore         Int                @default(0)
+  responseRate       Float              @default(0)
+  tasksCompleted     Int                @default(0)
+  locationLabel      String?
+  latitude           Float?
+  longitude          Float?
+  radiusKm           Float              @default(10)
+  user               User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+  skills             CaptainSkill[]
+  createdAt          DateTime           @default(now())
+  updatedAt          DateTime           @updatedAt
+
+  @@index([availabilityStatus, isAvailableNow])
+}
+
+model Skill {
+  id           String         @id @default(uuid())
+  slug         String         @unique
+  label        String
+  captainLinks CaptainSkill[]
+  taskLinks    TaskSkill[]
+  createdAt    DateTime       @default(now())
+  updatedAt    DateTime       @updatedAt
+}
+
+model CaptainSkill {
+  captainProfileId String
+  skillId          String
+  captainProfile   CaptainProfile @relation(fields: [captainProfileId], references: [id], onDelete: Cascade)
+  skill            Skill          @relation(fields: [skillId], references: [id], onDelete: Cascade)
+  createdAt        DateTime       @default(now())
+
+  @@id([captainProfileId, skillId])
+  @@index([skillId])
 }
 
 model Task {
-  id            String      @id @default(cuid())
-  title         String
-  description   String
-  category      String
-  taskType      TaskType
-  status        TaskStatus  @default(OPEN)
-  urgency       TaskUrgency @default(MEDIUM)
-  tokenBudget   Int         @default(0)
-  locationLabel String
-  latitude      Float
-  longitude     Float
-  radiusKm      Float       @default(5)
-  creatorId     String
-  creator       User        @relation("CreatorTasks", fields: [creatorId], references: [id])
-  assignment    Assignment?
-  createdAt     DateTime    @default(now())
-  updatedAt     DateTime    @updatedAt
+  id              String       @id @default(uuid())
+  title           String
+  description     String
+  category        TaskCategory
+  taskType        TaskType
+  status          TaskStatus   @default(DRAFT)
+  urgency         TaskUrgency  @default(MEDIUM)
+  tokenBudget     Int          @default(0)
+  locationLabel   String
+  latitude        Float
+  longitude       Float
+  radiusKm        Float        @default(5)
+  voiceTranscript String?
+  notes           String?
+  creatorId       String
+  requestedAt     DateTime     @default(now())
+  scheduledFor    DateTime?
+  creator         User         @relation("CreatorTasks", fields: [creatorId], references: [id], onDelete: Cascade)
+  assignment      Assignment?
+  offers          TaskOffer[]
+  requiredSkills  TaskSkill[]
+  createdAt       DateTime     @default(now())
+  updatedAt       DateTime     @updatedAt
+
+  @@index([creatorId, status])
+  @@index([status, urgency])
+  @@index([category, status])
+  @@index([requestedAt])
+}
+
+model TaskSkill {
+  taskId    String
+  skillId   String
+  task      Task     @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  skill     Skill    @relation(fields: [skillId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+
+  @@id([taskId, skillId])
+  @@index([skillId])
+}
+
+model TaskOffer {
+  id          String      @id @default(uuid())
+  taskId      String
+  captainId   String
+  status      OfferStatus @default(PENDING)
+  note        String?
+  task        Task        @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  captain     User        @relation("CaptainOffers", fields: [captainId], references: [id], onDelete: Cascade)
+  assignment  Assignment?
+  createdAt   DateTime    @default(now())
+  respondedAt DateTime?
+
+  @@unique([taskId, captainId])
+  @@index([captainId, status])
+  @@index([taskId, status])
 }
 
 model Assignment {
-  id          String    @id @default(cuid())
-  taskId      String    @unique
-  captainId   String
-  acceptedAt  DateTime?
-  completedAt DateTime?
-  task        Task      @relation(fields: [taskId], references: [id])
-  captain     User      @relation("CaptainAssignments", fields: [captainId], references: [id])
-  rating      Rating?
-  createdAt   DateTime  @default(now())
+  id                 String           @id @default(uuid())
+  taskId             String           @unique
+  captainId          String
+  offerId            String?          @unique
+  status             AssignmentStatus @default(PENDING_START)
+  acceptedAt         DateTime?
+  startedAt          DateTime?
+  completedAt        DateTime?
+  cancelledAt        DateTime?
+  task               Task             @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  captain            User             @relation("CaptainAssignments", fields: [captainId], references: [id], onDelete: Cascade)
+  offer              TaskOffer?       @relation(fields: [offerId], references: [id], onDelete: SetNull)
+  rating             Rating?
+  payoutTransactions Transaction[]
+  createdAt          DateTime         @default(now())
+  updatedAt          DateTime         @updatedAt
+
+  @@index([captainId, status])
 }
 
 model Wallet {
-  id            String        @id @default(cuid())
+  id            String        @id @default(uuid())
   ownerId       String        @unique
-  owner         User          @relation(fields: [ownerId], references: [id])
+  network       WalletNetwork @default(SOLANA_DEVNET)
   solanaAddress String?       @unique
   balanceTokens Int           @default(0)
+  lastSyncedAt  DateTime?
+  owner         User          @relation(fields: [ownerId], references: [id], onDelete: Cascade)
   transactions  Transaction[]
   createdAt     DateTime      @default(now())
   updatedAt     DateTime      @updatedAt
 }
 
 model Transaction {
-  id        String               @id @default(cuid())
-  walletId  String
-  direction TransactionDirection
-  amount    Int
-  reason    String
-  wallet    Wallet               @relation(fields: [walletId], references: [id])
-  createdAt DateTime             @default(now())
+  id              String               @id @default(uuid())
+  walletId        String
+  assignmentId    String?
+  direction       TransactionDirection
+  type            TransactionType
+  status          TransactionStatus    @default(PENDING)
+  amountTokens    Int
+  reason          String
+  solanaSignature String?              @unique
+  explorerUrl     String?
+  metadata        Json?
+  wallet          Wallet               @relation(fields: [walletId], references: [id], onDelete: Cascade)
+  assignment      Assignment?          @relation(fields: [assignmentId], references: [id], onDelete: SetNull)
+  createdAt       DateTime             @default(now())
+  confirmedAt     DateTime?
+
+  @@index([walletId, createdAt])
+  @@index([assignmentId])
+  @@index([status, type])
 }
 
 model Rating {
-  id           String     @id @default(cuid())
+  id           String     @id @default(uuid())
   assignmentId String     @unique
   authorId     String
   targetId     String
   score        Int
   note         String?
-  assignment   Assignment @relation(fields: [assignmentId], references: [id])
-  author       User       @relation("AuthorRatings", fields: [authorId], references: [id])
-  target       User       @relation("TargetRatings", fields: [targetId], references: [id])
+  assignment   Assignment @relation(fields: [assignmentId], references: [id], onDelete: Cascade)
+  author       User       @relation("AuthorRatings", fields: [authorId], references: [id], onDelete: Cascade)
+  target       User       @relation("TargetRatings", fields: [targetId], references: [id], onDelete: Cascade)
   createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
+
+  @@index([authorId])
+  @@index([targetId])
 }
