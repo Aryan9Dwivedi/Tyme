@@ -2,7 +2,6 @@ import { useEffect, useRef } from "react";
 import { CircleMarker, MapContainer, TileLayer, Tooltip, useMap } from "react-leaflet";
 import L from "leaflet";
 
-import "leaflet/dist/leaflet.css";
 import "leaflet.heat";
 
 const CHICAGO_CENTER = [41.8781, -87.6298];
@@ -29,16 +28,16 @@ function DemandHeatLayer({ points }) {
     layerRef.current = L.heatLayer(
       points.map((point) => [point.latitude, point.longitude, point.map_weight || 1]),
       {
-        radius: 28,
-        blur: 24,
+        radius: 30,
+        blur: 26,
         maxZoom: 16,
-        minOpacity: 0.35,
+        minOpacity: 0.4,
         max: strongestWeight,
         gradient: {
-          0.25: "#67e8f9",
-          0.45: "#14b8a6",
-          0.7: "#f59e0b",
-          1: "#ef4444",
+          0.2: "#fecaca",
+          0.45: "#f87171",
+          0.7: "#dc2626",
+          1: "#7f1d1d",
         },
       },
     );
@@ -101,12 +100,12 @@ export default function CaptainDemandMap({ points }) {
         <CircleMarker
           key={point.id}
           center={[point.latitude, point.longitude]}
-          radius={Math.max(8, Math.min(18, 6 + point.demand_score * 1.6))}
+          radius={Math.max(8, Math.min(16, 5 + point.demand_score * 1.4))}
           pathOptions={{
-            color: "#0f766e",
-            fillColor: "#14b8a6",
-            fillOpacity: 0.3,
-            weight: 1.5,
+            color: "#991b1b",
+            fillColor: "#dc2626",
+            fillOpacity: 0.42,
+            weight: 1.25,
           }}
         >
           <Tooltip direction="top" offset={[0, -8]}>

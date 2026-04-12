@@ -87,6 +87,44 @@
     font-feature-settings: "cv11", "ss01";
   }
 
+  .leaflet-container {
+    height: 100%;
+    width: 100%;
+    background: #f5f1ed;
+    font: inherit;
+  }
+
+  .leaflet-container img,
+  .leaflet-container svg {
+    max-width: none !important;
+  }
+
+  .leaflet-pane,
+  .leaflet-tile,
+  .leaflet-marker-icon,
+  .leaflet-marker-shadow,
+  .leaflet-tile-container,
+  .leaflet-pane > svg,
+  .leaflet-pane > canvas,
+  .leaflet-zoom-box,
+  .leaflet-image-layer,
+  .leaflet-layer {
+    position: absolute;
+    left: 0;
+    top: 0;
+  }
+
+  .leaflet-control-attribution {
+    font-size: 11px;
+    background: rgba(255, 255, 255, 0.88);
+    border-radius: 8px 0 0 0;
+    padding: 4px 8px;
+  }
+
+  .leaflet-control-attribution a {
+    color: #7f1d1d;
+  }
+
   h1, h2, h3, h4, h5, h6 {
     font-feature-settings: "cv11", "ss01";
     letter-spacing: -0.02em;

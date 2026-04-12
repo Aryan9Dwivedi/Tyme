@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { Clock3, Coins, LoaderCircle, MapPin, RefreshCw, Zap } from "lucide-react";
+import { LoaderCircle, MapPin, RefreshCw } from "lucide-react";
 
 import CaptainDemandMap from "./CaptainDemandMap";
 import { fetchCaptainDemandHeatmap } from "@/lib/platform-api";
@@ -30,13 +30,6 @@ const CATEGORY_OPTIONS = [
   { value: "OTHER", label: "Other" },
 ];
 
-const URGENCY_OPTIONS = [
-  { value: "", label: "All urgency" },
-  { value: "LOW", label: "Low" },
-  { value: "MEDIUM", label: "Medium" },
-  { value: "HIGH", label: "High" },
-];
-
 function freshnessLabel(minutes) {
   if (minutes < 60) {
     return `${minutes}m ago`;
@@ -49,78 +42,56 @@ function rewardLabel(value) {
   return value > 0 ? `${value} TB` : "Volunteer";
 }
 
-function SummaryTile({ icon: Icon, label, value, tone = "default" }) {
-  const toneClass =
-    tone === "accent"
-      ? "border-teal/20 bg-teal-light text-teal"
-      : tone === "warm"
-        ? "border-amber-200 bg-amber-50 text-amber-700"
-        : "border-border bg-secondary text-ink";
+function quickReadLabel(hotspot) {
+  if (hotspot.reward_pool >= 30) {
+    return "Best pay";
+  }
 
-  return (
-    <div className={`rounded-2xl border px-4 py-3 ${toneClass}`}>
-      <div className="flex items-center justify-between gap-3">
-        <div>
-          <div className="text-[11px] uppercase tracking-[0.18em] opacity-70">{label}</div>
-          <div className="mt-1 text-2xl font-semibold tracking-tight">{value}</div>
-        </div>
-        <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-white/70 shadow-sm">
-          <Icon size={18} />
-        </div>
-      </div>
-    </div>
-  );
+  if (hotspot.active_jobs >= 3) {
+    return "Most demand";
+  }
+
+  return "Good next stop";
 }
 
 export default function CaptainDemandPanel() {
   const [windowMinutes, setWindowMinutes] = useState("60");
   const [category, setCategory] = useState("");
-  const [urgency, setUrgency] = useState("");
   const [live, setLive] = useState(true);
 
   const heatmapQuery = useQuery({
-    queryKey: ["captain-demand", windowMinutes, category, urgency],
+    queryKey: ["captain-demand", windowMinutes, category],
     queryFn: () =>
       fetchCaptainDemandHeatmap({
         lastMinutes: Number(windowMinutes),
         category,
-        urgency,
       }),
     refetchInterval: live ? 10000 : false,
     staleTime: 5000,
   });
 
   const hotspots = heatmapQuery.data?.hotspots ?? [];
-  const summary = heatmapQuery.data?.summary ?? {
-    active_jobs: 0,
-    hotspot_count: 0,
-    urgent_jobs: 0,
-    reward_pool: 0,
-    best_zone: null,
-  };
   const topHotspot = hotspots[0] ?? null;
   const lastUpdated = heatmapQuery.data?.generated_at
     ? new Date(heatmapQuery.data.generated_at).toLocaleTimeString([], {
         hour: "numeric",
         minute: "2-digit",
-        second: "2-digit",
       })
     : null;
 
   return (
     <section className="rounded-[28px] border border-border bg-white p-5 shadow-premium md:p-6">
-      <div className="flex flex-col gap-4 xl:flex-row xl:items-start xl:justify-between">
-        <div className="max-w-2xl">
-          <div className="inline-flex items-center gap-2 rounded-full bg-teal-light px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.22em] text-teal">
+      <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+        <div className="max-w-xl">
+          <div className="inline-flex items-center gap-2 rounded-full bg-rose-50 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.22em] text-rose-700">
             <MapPin size={12} />
-            Demand radar
+            Hotspot radar
           </div>
           <h2 className="mt-3 text-2xl font-bold tracking-tight text-ink">
             Where should you drive next?
           </h2>
-          <p className="mt-2 text-sm leading-relaxed text-ink-secondary">
-            Tyme blends open jobs, urgency, and live reward pools so captains can move toward
-            neighborhoods with better earning potential.
+          <p className="mt-2 text-sm text-ink-secondary">
+            The red zones are the strongest places to head for nearby work right now.
           </p>
         </div>
 
@@ -130,7 +101,7 @@ export default function CaptainDemandPanel() {
             onClick={() => setLive((currentValue) => !currentValue)}
             className={`inline-flex items-center gap-2 rounded-full border px-3 py-2 text-xs font-medium transition-colors ${
               live
-                ? "border-teal/30 bg-teal-light text-teal"
+                ? "border-rose-200 bg-rose-50 text-rose-700"
                 : "border-border bg-white text-ink-secondary"
             }`}
           >
@@ -138,32 +109,32 @@ export default function CaptainDemandPanel() {
               <LoaderCircle size={13} className="animate-spin" />
             ) : (
               <span
-                className={`h-2 w-2 rounded-full ${live ? "bg-teal" : "bg-ink-disabled"}`}
+                className={`h-2 w-2 rounded-full ${live ? "bg-rose-600" : "bg-ink-disabled"}`}
               />
             )}
-            {live ? "Live updates on" : "Live updates paused"}
+            {live ? "Live on" : "Live off"}
           </button>
 
           <button
             type="button"
             onClick={() => heatmapQuery.refetch()}
-            className="inline-flex items-center gap-2 rounded-full border border-border bg-white px-3 py-2 text-xs font-medium text-ink-secondary transition-colors hover:border-teal/30 hover:text-teal"
+            className="inline-flex items-center gap-2 rounded-full border border-border bg-white px-3 py-2 text-xs font-medium text-ink-secondary transition-colors hover:border-rose-200 hover:text-rose-700"
           >
             <RefreshCw size={13} className={heatmapQuery.isFetching ? "animate-spin" : ""} />
             Refresh
           </button>
 
           <div className="rounded-full border border-border bg-secondary px-3 py-2 text-xs text-ink-tertiary">
-            Updated {lastUpdated ?? "waiting..."}
+            Updated {lastUpdated ?? "..."}
           </div>
         </div>
       </div>
 
-      <div className="mt-5 flex flex-col gap-3 xl:flex-row">
+      <div className="mt-5 flex flex-col gap-3 md:flex-row">
         <select
           value={windowMinutes}
           onChange={(event) => setWindowMinutes(event.target.value)}
-          className="rounded-2xl border border-border bg-secondary px-4 py-2.5 text-sm text-ink focus:border-teal focus:outline-none"
+          className="rounded-2xl border border-border bg-secondary px-4 py-2.5 text-sm text-ink focus:border-rose-500 focus:outline-none"
         >
           {WINDOW_OPTIONS.map((option) => (
             <option key={option.value} value={option.value}>
@@ -175,21 +146,9 @@ export default function CaptainDemandPanel() {
         <select
           value={category}
           onChange={(event) => setCategory(event.target.value)}
-          className="rounded-2xl border border-border bg-secondary px-4 py-2.5 text-sm text-ink focus:border-teal focus:outline-none"
+          className="rounded-2xl border border-border bg-secondary px-4 py-2.5 text-sm text-ink focus:border-rose-500 focus:outline-none"
         >
           {CATEGORY_OPTIONS.map((option) => (
-            <option key={option.value || "all"} value={option.value}>
-              {option.label}
-            </option>
-          ))}
-        </select>
-
-        <select
-          value={urgency}
-          onChange={(event) => setUrgency(event.target.value)}
-          className="rounded-2xl border border-border bg-secondary px-4 py-2.5 text-sm text-ink focus:border-teal focus:outline-none"
-        >
-          {URGENCY_OPTIONS.map((option) => (
             <option key={option.value || "all"} value={option.value}>
               {option.label}
             </option>
@@ -203,31 +162,24 @@ export default function CaptainDemandPanel() {
         </div>
       )}
 
-      <div className="mt-5 grid gap-3 md:grid-cols-2 xl:grid-cols-4">
-        <SummaryTile icon={Zap} label="Active jobs" value={summary.active_jobs} tone="accent" />
-        <SummaryTile icon={MapPin} label="Hotspots" value={summary.hotspot_count} />
-        <SummaryTile icon={Coins} label="Reward pool" value={`${summary.reward_pool} TB`} tone="warm" />
-        <SummaryTile icon={Clock3} label="Urgent requests" value={summary.urgent_jobs} />
-      </div>
-
-      <div className="mt-5 grid gap-5 xl:grid-cols-[minmax(0,1.25fr)_minmax(320px,0.95fr)]">
-        <div className="overflow-hidden rounded-[26px] border border-border bg-secondary">
+      <div className="mt-5 grid gap-5 xl:grid-cols-[minmax(0,1.35fr)_320px]">
+        <div className="overflow-hidden rounded-[26px] border border-border bg-secondary shadow-sm">
           <div className="flex items-center justify-between border-b border-border px-5 py-4">
             <div>
-              <h3 className="font-semibold text-ink">Live demand heatmap</h3>
-              <p className="text-xs text-ink-tertiary">
-                Heat grows with urgency, job volume, and local reward pool.
-              </p>
+              <h3 className="font-semibold text-ink">Live demand map</h3>
+              <p className="text-xs text-ink-tertiary">Darker red means more work and better pay.</p>
             </div>
-            <div className="rounded-full bg-white px-3 py-1 text-xs font-medium text-ink-secondary">
-              {hotspots.length} zones
-            </div>
+            {topHotspot && (
+              <div className="hidden rounded-full bg-rose-50 px-3 py-1 text-xs font-medium text-rose-700 md:inline-flex">
+                Go to {topHotspot.label}
+              </div>
+            )}
           </div>
 
-          <div className="h-[420px] bg-slate-100">
+          <div className="h-[360px] bg-[#f5f1ed] md:h-[420px]">
             {heatmapQuery.isLoading && !hotspots.length ? (
               <div className="flex h-full items-center justify-center px-6 text-sm text-ink-tertiary">
-                Mapping the strongest demand pockets near you...
+                Loading your best next zones...
               </div>
             ) : hotspots.length ? (
               <CaptainDemandMap points={hotspots} />
@@ -243,44 +195,29 @@ export default function CaptainDemandPanel() {
         </div>
 
         <div className="space-y-4">
-          <div className="rounded-[26px] border border-teal/20 bg-gradient-to-br from-teal-light via-white to-amber-50 p-5">
-            <div className="text-[11px] font-semibold uppercase tracking-[0.22em] text-teal">
-              Recommended move
+          <div className="rounded-[26px] border border-rose-100 bg-gradient-to-br from-white via-rose-50 to-white p-5">
+            <div className="text-[11px] font-semibold uppercase tracking-[0.22em] text-rose-700">
+              Best next move
             </div>
             {topHotspot ? (
               <>
                 <div className="mt-2 text-2xl font-semibold tracking-tight text-ink">
                   {topHotspot.label}
                 </div>
-                <p className="mt-2 text-sm leading-relaxed text-ink-secondary">
+                <div className="mt-3 flex flex-wrap gap-2">
+                  <span className="rounded-full bg-white px-3 py-1.5 text-sm font-medium text-ink shadow-sm">
+                    {topHotspot.active_jobs} jobs
+                  </span>
+                  <span className="rounded-full bg-white px-3 py-1.5 text-sm font-medium text-ink shadow-sm">
+                    {rewardLabel(topHotspot.reward_pool)}
+                  </span>
+                  <span className="rounded-full bg-white px-3 py-1.5 text-sm font-medium text-ink shadow-sm">
+                    {freshnessLabel(topHotspot.freshest_request_mins_ago)}
+                  </span>
+                </div>
+                <p className="mt-4 text-sm leading-relaxed text-ink-secondary">
                   {topHotspot.guidance}
                 </p>
-                <div className="mt-4 grid grid-cols-3 gap-3">
-                  <div>
-                    <div className="text-[11px] uppercase tracking-[0.18em] text-ink-tertiary">
-                      Jobs
-                    </div>
-                    <div className="mt-1 text-xl font-semibold text-ink">
-                      {topHotspot.active_jobs}
-                    </div>
-                  </div>
-                  <div>
-                    <div className="text-[11px] uppercase tracking-[0.18em] text-ink-tertiary">
-                      Reward
-                    </div>
-                    <div className="mt-1 text-xl font-semibold text-ink">
-                      {topHotspot.reward_pool} TB
-                    </div>
-                  </div>
-                  <div>
-                    <div className="text-[11px] uppercase tracking-[0.18em] text-ink-tertiary">
-                      Freshest
-                    </div>
-                    <div className="mt-1 text-xl font-semibold text-ink">
-                      {freshnessLabel(topHotspot.freshest_request_mins_ago)}
-                    </div>
-                  </div>
-                </div>
               </>
             ) : (
               <p className="mt-2 text-sm text-ink-secondary">
@@ -292,10 +229,8 @@ export default function CaptainDemandPanel() {
           <div className="rounded-[26px] border border-border bg-white p-5">
             <div className="mb-3 flex items-center justify-between gap-3">
               <div>
-                <h3 className="font-semibold text-ink">Hotspot table</h3>
-                <p className="text-xs text-ink-tertiary">
-                  Ranked by combined urgency and local earning potential.
-                </p>
+                <h3 className="font-semibold text-ink">Quick read</h3>
+                <p className="text-xs text-ink-tertiary">Top zones at a glance.</p>
               </div>
             </div>
 
@@ -309,45 +244,39 @@ export default function CaptainDemandPanel() {
                     Jobs
                   </TableHead>
                   <TableHead className="text-xs uppercase tracking-[0.16em] text-ink-tertiary">
-                    Score
-                  </TableHead>
-                  <TableHead className="text-xs uppercase tracking-[0.16em] text-ink-tertiary">
-                    Reward
+                    Pay
                   </TableHead>
                   <TableHead className="pr-0 text-right text-xs uppercase tracking-[0.16em] text-ink-tertiary">
-                    Fresh
+                    Why
                   </TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {hotspots.slice(0, 6).map((hotspot) => (
-                  <TableRow key={hotspot.id}>
+                {hotspots.slice(0, 4).map((hotspot, index) => (
+                  <TableRow key={hotspot.id} className={index === 0 ? "bg-rose-50/80" : ""}>
                     <TableCell className="pl-0">
                       <div className="font-medium text-ink">{hotspot.label}</div>
                       <div className="text-xs text-ink-tertiary">
-                        {hotspot.dominant_category}
+                        {freshnessLabel(hotspot.freshest_request_mins_ago)}
                       </div>
                     </TableCell>
                     <TableCell className="font-medium text-ink">
                       {hotspot.active_jobs}
                     </TableCell>
-                    <TableCell>
-                      <span className="inline-flex rounded-full bg-teal-light px-2.5 py-1 text-xs font-semibold text-teal">
-                        {hotspot.demand_score}
-                      </span>
-                    </TableCell>
                     <TableCell className="font-medium text-ink">
                       {rewardLabel(hotspot.reward_pool)}
                     </TableCell>
                     <TableCell className="pr-0 text-right text-ink-secondary">
-                      {freshnessLabel(hotspot.freshest_request_mins_ago)}
+                      <span className="inline-flex rounded-full bg-secondary px-2.5 py-1 text-xs font-medium text-ink-secondary">
+                        {quickReadLabel(hotspot)}
+                      </span>
                     </TableCell>
                   </TableRow>
                 ))}
 
                 {!hotspots.length && !heatmapQuery.isLoading && (
                   <TableRow>
-                    <TableCell colSpan={5} className="pl-0 pr-0 text-center text-sm text-ink-tertiary">
+                    <TableCell colSpan={4} className="pl-0 pr-0 text-center text-sm text-ink-tertiary">
                       No hotspot rows yet for this filter.
                     </TableCell>
                   </TableRow>
