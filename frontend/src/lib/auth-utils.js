@@ -1,5 +1,35 @@
 export const AUTH_TOKEN_KEY = "tyme.auth.token";
 
+function canUseBrowserStorage() {
+  return typeof window !== "undefined" && typeof window.sessionStorage !== "undefined";
+}
+
+export function getAuthToken() {
+  if (!canUseBrowserStorage()) {
+    return null;
+  }
+
+  return window.sessionStorage.getItem(AUTH_TOKEN_KEY);
+}
+
+export function setAuthToken(token) {
+  if (!canUseBrowserStorage()) {
+    return;
+  }
+
+  window.sessionStorage.setItem(AUTH_TOKEN_KEY, token);
+  window.localStorage.removeItem(AUTH_TOKEN_KEY);
+}
+
+export function clearAuthToken() {
+  if (!canUseBrowserStorage()) {
+    return;
+  }
+
+  window.sessionStorage.removeItem(AUTH_TOKEN_KEY);
+  window.localStorage.removeItem(AUTH_TOKEN_KEY);
+}
+
 export const ROLE_HOME = {
   USER: "/dashboard",
   CAPTAIN: "/captain/dashboard",

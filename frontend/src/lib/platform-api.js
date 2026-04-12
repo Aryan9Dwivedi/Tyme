@@ -1,6 +1,6 @@
 // @ts-nocheck
 
-import { AUTH_TOKEN_KEY } from "@/lib/auth-utils";
+import { getAuthToken } from "@/lib/auth-utils";
 
 const importMeta = /** @type {{ env?: { VITE_API_BASE_URL?: string } }} */ (import.meta);
 const apiBaseUrl = importMeta.env?.VITE_API_BASE_URL?.replace(/\/$/, "") ?? "";
@@ -10,7 +10,7 @@ function getApiUrl(path) {
 }
 
 function getStoredToken() {
-  return window.localStorage.getItem(AUTH_TOKEN_KEY);
+  return getAuthToken();
 }
 
 async function apiRequest(path, options = {}) {

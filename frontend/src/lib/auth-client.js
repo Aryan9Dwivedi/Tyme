@@ -1,4 +1,4 @@
-import { AUTH_TOKEN_KEY } from "@/lib/auth-utils";
+import { clearAuthToken, getAuthToken, setAuthToken } from "@/lib/auth-utils";
 
 const importMeta = /** @type {{ env?: { VITE_API_BASE_URL?: string } }} */ (import.meta);
 const apiBaseUrl = importMeta.env?.VITE_API_BASE_URL?.replace(/\/$/, "") ?? "";
@@ -34,15 +34,15 @@ async function apiRequest(path, options = {}) {
 }
 
 export function getStoredToken() {
-  return window.localStorage.getItem(AUTH_TOKEN_KEY);
+  return getAuthToken();
 }
 
 export function setStoredToken(token) {
-  window.localStorage.setItem(AUTH_TOKEN_KEY, token);
+  setAuthToken(token);
 }
 
 export function clearStoredToken() {
-  window.localStorage.removeItem(AUTH_TOKEN_KEY);
+  clearAuthToken();
 }
 
 export function login(credentials) {
