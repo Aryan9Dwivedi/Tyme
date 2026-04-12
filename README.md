@@ -1,10 +1,9 @@
 ## Stack
 
-- Next.js App Router
-- TypeScript with strict mode
-- Tailwind CSS v4
-- Route handlers for starter APIs
-- Prisma schema placeholder for the database model
+- Backend: Next.js App Router, TypeScript, Prisma, Neon Postgres
+- Frontend: React + Vite app in `frontend/`
+- Tailwind CSS
+- Route handlers for auth, health, and recommendations
 
 ## Project Links
 
@@ -12,45 +11,56 @@
 - [FLOW.md](./FLOW.md)
 - [TASK.md](./TASK.md)
 
-## Team-Safe Structure
+## Repo Structure
 
 ```text
+frontend/               -> premium React/Vite frontend app
+  src/                  -> user, captain, admin UI and auth flows
+  vercel.json           -> frontend SPA routing for Vercel
 src/
   app/
-    (marketing)/        -> landing page
-    (workspace)/        -> admin, captain, user dashboards
+    (marketing)/        -> backend status page
+    (workspace)/        -> backend placeholder/status routes
     api/                -> route handlers and backend entry points
   components/
-    layout/             -> shared shells and navigation
+    backend/            -> backend deployment status UI
+    layout/             -> backend shells and navigation
     ui/                 -> reusable interface pieces
-  features/
-    dashboard/          -> role-based dashboard configs and screens
-    landing/            -> homepage content and sections
-    recommendations/    -> recommendation previews and related UI
   lib/
-    constants/          -> app name, navigation, ownership lanes
-    mocks/              -> demo data for local development
+    constants/          -> app name and shared config
   server/
+    auth/               -> token/session helpers
+    db/                 -> Prisma client wiring
     services/           -> scoring and recommendation logic
-  types/                -> shared TypeScript contracts
 prisma/
-  schema.prisma         -> starter relational data model
+  schema.prisma         -> production Postgres data model
 ```
 
-## Ownership Suggestion
+## One Repo Rule
 
-- Teammate 1: `src/app/(marketing)`, `src/features/landing`, `src/components/ui`
-- Teammate 2: `src/app/(workspace)/captain`, `src/app/(workspace)/user`, `src/features/dashboard`
-- Teammate 3: `src/app/api`, `src/server`, `src/types`, `prisma`
+This repository is now the single source of truth for the project:
+
+- backend/API lives at the repo root
+- premium frontend lives in `frontend/`
+- do not treat `Wildhack26Frontend` as the main repo anymore
 
 ## Useful Commands
 
 ```bash
 npm install
 npm run dev
+npm run frontend:install
+npm run frontend:dev
 npm run check
 npm run build
+npm run frontend:check
+npm run frontend:build
 ```
+
+## Local URLs
+
+- Backend: `http://127.0.0.1:3000`
+- Frontend: `http://127.0.0.1:4173`
 
 ## Rename Point
 

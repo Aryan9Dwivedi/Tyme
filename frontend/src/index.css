@@ -1,0 +1,209 @@
+@import url('https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,400&family=DM+Serif+Display:ital@0;1&family=JetBrains+Mono:wght@400;500&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    /* Canvas & Surfaces */
+    --canvas: 36 25% 97%;
+    --surface: 0 0% 100%;
+    --surface-raised: 0 0% 100%;
+    --surface-overlay: 0 0% 100%;
+
+    /* Ink & Text */
+    --ink: 220 25% 8%;
+    --ink-secondary: 220 12% 35%;
+    --ink-tertiary: 220 10% 55%;
+    --ink-disabled: 220 8% 72%;
+
+    /* Borders */
+    --border: 36 20% 88%;
+    --border-strong: 36 15% 78%;
+
+    /* Sidebar (dark) */
+    --sidebar-bg: 224 28% 8%;
+    --sidebar-surface: 224 22% 12%;
+    --sidebar-border: 224 18% 16%;
+    --sidebar-text: 36 20% 88%;
+    --sidebar-text-muted: 220 10% 55%;
+    --sidebar-accent: 174 70% 42%;
+
+    /* Brand Accents */
+    --teal: 174 72% 38%;
+    --teal-light: 174 60% 94%;
+    --teal-mid: 174 60% 85%;
+
+    /* Status Colors */
+    --coral: 20 90% 52%;
+    --coral-light: 20 100% 95%;
+    --amber: 38 92% 50%;
+    --amber-light: 38 100% 94%;
+    --emerald: 155 68% 40%;
+    --emerald-light: 155 55% 93%;
+    --blue: 211 85% 52%;
+    --blue-light: 211 90% 94%;
+    --rose: 345 82% 55%;
+    --rose-light: 345 90% 95%;
+
+    /* Shadcn compat */
+    --background: 36 25% 97%;
+    --foreground: 220 25% 8%;
+    --card: 0 0% 100%;
+    --card-foreground: 220 25% 8%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 220 25% 8%;
+    --primary: 174 72% 38%;
+    --primary-foreground: 0 0% 100%;
+    --secondary: 36 20% 92%;
+    --secondary-foreground: 220 25% 8%;
+    --muted: 36 20% 92%;
+    --muted-foreground: 220 10% 50%;
+    --accent: 36 20% 92%;
+    --accent-foreground: 220 25% 8%;
+    --destructive: 20 90% 52%;
+    --destructive-foreground: 0 0% 100%;
+    --border: 36 20% 88%;
+    --input: 36 20% 88%;
+    --ring: 174 72% 38%;
+    --radius: 0.625rem;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+
+  html {
+    font-family: 'DM Sans', system-ui, sans-serif;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  body {
+    @apply bg-canvas text-ink;
+    font-feature-settings: "cv11", "ss01";
+  }
+
+  h1, h2, h3, h4, h5, h6 {
+    font-feature-settings: "cv11", "ss01";
+    letter-spacing: -0.02em;
+  }
+}
+
+@layer components {
+  /* Premium card base */
+  .card-premium {
+    @apply bg-white border border-border rounded-xl shadow-sm;
+  }
+
+  .card-premium-hover {
+    @apply card-premium transition-all duration-200 hover:shadow-md hover:border-border-strong hover:-translate-y-0.5;
+  }
+
+  /* Sidebar nav item */
+  .nav-item {
+    @apply flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-150;
+    color: hsl(var(--sidebar-text-muted));
+  }
+
+  .nav-item:hover {
+    background: hsl(var(--sidebar-surface));
+    color: hsl(var(--sidebar-text));
+  }
+
+  .nav-item.active {
+    background: hsl(var(--sidebar-surface));
+    color: hsl(var(--sidebar-text));
+  }
+
+  .nav-item.active .nav-dot {
+    @apply opacity-100;
+  }
+
+  /* Status badge base */
+  .badge {
+    @apply inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-medium tracking-wide;
+  }
+
+  /* Pulse dot animation */
+  .pulse-dot {
+    animation: pulse-ring 2s cubic-bezier(0.455, 0.030, 0.515, 0.955) infinite;
+  }
+
+  @keyframes pulse-ring {
+    0% { box-shadow: 0 0 0 0 rgba(20, 184, 166, 0.4); }
+    70% { box-shadow: 0 0 0 8px rgba(20, 184, 166, 0); }
+    100% { box-shadow: 0 0 0 0 rgba(20, 184, 166, 0); }
+  }
+
+  /* Glass surface */
+  .glass {
+    background: rgba(255, 255, 255, 0.7);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border: 1px solid rgba(255, 255, 255, 0.3);
+  }
+
+  /* Skeleton loading */
+  .skeleton {
+    @apply bg-border animate-pulse rounded;
+  }
+
+  /* Input premium */
+  .input-premium {
+    @apply w-full px-4 py-3 bg-white border border-border rounded-xl text-sm text-ink placeholder:text-ink-tertiary focus:outline-none focus:ring-2 focus:ring-teal/20 focus:border-teal transition-all duration-150;
+  }
+
+  /* Monospace */
+  .mono {
+    font-family: 'JetBrains Mono', monospace;
+  }
+
+  /* Display font */
+  .serif {
+    font-family: 'DM Serif Display', Georgia, serif;
+  }
+
+  /* Gradient text */
+  .gradient-text {
+    background: linear-gradient(135deg, hsl(174, 72%, 38%), hsl(211, 85%, 52%));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+
+  /* Section reveal */
+  .reveal {
+    animation: fadeUp 0.5s ease-out forwards;
+  }
+
+  @keyframes fadeUp {
+    from { opacity: 0; transform: translateY(16px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  /* Sidebar scrollbar */
+  .sidebar-scroll::-webkit-scrollbar {
+    width: 4px;
+  }
+  .sidebar-scroll::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  .sidebar-scroll::-webkit-scrollbar-thumb {
+    background: hsl(var(--sidebar-border));
+    border-radius: 2px;
+  }
+
+  /* Map pulse */
+  .map-pulse {
+    animation: mapPulse 3s ease-in-out infinite;
+  }
+
+  @keyframes mapPulse {
+    0%, 100% { opacity: 0.6; transform: scale(1); }
+    50% { opacity: 1; transform: scale(1.05); }
+  }
+}

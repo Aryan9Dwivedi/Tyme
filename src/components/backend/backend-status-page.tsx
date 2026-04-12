@@ -22,8 +22,8 @@ export function BackendStatusPage() {
 
         <p className="mt-4 max-w-2xl text-base leading-8 text-muted md:text-lg">
           This Vercel project is the API/backend deployment. The premium app UI
-          lives in the separate frontend repo and should be deployed on its own
-          Vercel project.
+          now lives in the <span className="font-medium">frontend/</span>{" "}
+          folder inside this same repository.
         </p>
 
         <div className="mt-8 grid gap-4 md:grid-cols-2">
@@ -42,8 +42,9 @@ export function BackendStatusPage() {
               What to open for the real app
             </p>
             <p className="mt-2 text-sm leading-7 text-muted">
-              Deploy the <span className="font-medium">Wildhack26Frontend</span>{" "}
-              repo on Vercel and use that URL for the actual product UI.
+              Deploy this same repo again with the Vercel root directory set to{" "}
+              <span className="font-medium">frontend</span>, then use that URL
+              for the actual product UI.
             </p>
           </article>
         </div>

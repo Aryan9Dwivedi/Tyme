@@ -14,12 +14,20 @@
     "lint": "eslint .",
     "typecheck": "tsc --noEmit",
     "check": "npm run lint && npm run typecheck",
+    "check:all": "npm run check && npm run frontend:check",
     "db:generate": "prisma generate",
     "db:migrate": "prisma migrate dev",
     "db:apply": "tsx prisma/apply-migrations.ts",
     "db:seed": "prisma db seed",
     "db:setup": "npm run db:generate && npm run db:apply && npm run db:seed",
-    "db:studio": "prisma studio"
+    "db:studio": "prisma studio",
+    "frontend:install": "npm install --prefix frontend",
+    "frontend:dev": "npm --prefix frontend run dev -- --host 127.0.0.1 --port 4173",
+    "frontend:build": "npm --prefix frontend run build",
+    "frontend:lint": "npm --prefix frontend run lint",
+    "frontend:typecheck": "npm --prefix frontend run typecheck",
+    "frontend:check": "npm run frontend:lint && npm run frontend:typecheck",
+    "build:all": "npm run build && npm run frontend:build"
   },
   "dependencies": {
     "@neondatabase/serverless": "^1.0.2",

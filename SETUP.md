@@ -17,6 +17,7 @@ cd WildHack26
 
 ```bash
 npm install
+npm run frontend:install
 ```
 
 If Windows PowerShell blocks `npm`, run `npm.cmd install` instead.
@@ -37,13 +38,30 @@ Notes:
 
 ```bash
 npm run dev
+npm run frontend:dev
 ```
 
-Open `http://localhost:3000`
+Open:
+
+- Backend/API: `http://127.0.0.1:3000`
+- Frontend/UI: `http://127.0.0.1:4173`
+
+The premium frontend now lives in `frontend/` inside this same repo.
 
 ## Vercel Deployment
 
-Deploy this backend repo as its own Vercel project.
+This single GitHub repo now contains both apps:
+
+- backend at the repo root
+- frontend in `frontend/`
+
+You can deploy them from the same repo using different Vercel project root directories.
+
+Backend Vercel project:
+- Root Directory: repo root
+
+Frontend Vercel project:
+- Root Directory: `frontend`
 
 Required environment variables:
 
@@ -58,16 +76,18 @@ Notes:
 - The API routes are CORS-enabled for cross-origin frontend calls.
 - Vercel install/build works with `DATABASE_URL`; `DIRECT_URL` is not required there.
 - Run `npm run db:apply` locally before deploying schema changes.
-- If your frontend is a separate Vercel project, set its `VITE_API_BASE_URL` to this backend URL.
+- In the frontend Vercel project, set `VITE_API_BASE_URL` to the backend Vercel URL.
 
 ## Quality Checks
 
 ```bash
 npm run check
 npm run build
+npm run frontend:check
+npm run frontend:build
 ```
 
-## Current Starter Routes
+## Current Backend Routes
 
 - `/`
 - `/admin`
@@ -75,9 +95,3 @@ npm run build
 - `/user`
 - `/api/health`
 - `/api/recommendations`
-
-## Suggested Work Split
-
-- Person 1: landing page polish and shared UI
-- Person 2: user and captain workflows
-- Person 3: backend, API contracts, wallet, database
