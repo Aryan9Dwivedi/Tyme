@@ -1,16 +1,22 @@
 import type { UserRole } from "@prisma/client";
 import { SignJWT, jwtVerify } from "jose";
 
-const authSecret =
-  process.env.AUTH_SECRET ??
-  process.env.JWT_SECRET ??
-  process.env.NEXTAUTH_SECRET;
+function getAuthSecret() {
+  const authSecret =
+    process.env.AUTH_SECRET ??
+    process.env.JWT_SECRET ??
+    process.env.NEXTAUTH_SECRET;
 
-if (!authSecret) {
-  throw new Error("AUTH_SECRET, JWT_SECRET, or NEXTAUTH_SECRET must be set.");
+  if (!authSecret) {
+    throw new Error("AUTH_SECRET, JWT_SECRET, or NEXTAUTH_SECRET must be set.");
+  }
+
+  return authSecret;
 }
 
-const secret = new TextEncoder().encode(authSecret);
+function getSecretKey() {
+  return new TextEncoder().encode(getAuthSecret());
+}
 
 export interface AuthTokenPayload {
   sub: string;
@@ -29,11 +35,11 @@ export async function signAuthToken(payload: AuthTokenPayload) {
     .setSubject(payload.sub)
     .setIssuedAt()
     .setExpirationTime("7d")
-    .sign(secret);
+    .sign(getSecretKey());
 }
 
 export async function verifyAuthToken(token: string) {
-  const { payload } = await jwtVerify(token, secret);
+  const { payload } = await jwtVerify(token, getSecretKey());
 
   return {
     id: payload.sub as string,

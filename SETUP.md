@@ -31,6 +31,7 @@ Notes:
 - Neon/Postgres and auth routes now require `DATABASE_URL` and `AUTH_SECRET`.
 - `DIRECT_URL` is optional and only helpful for local Prisma migration/debug tooling.
 - `CORS_ALLOW_ORIGIN` can stay as `*` for hackathon testing or be set to your frontend Vercel URL.
+- Next/Vercel builds no longer crash during import-time env checks, but the API still needs the real env values at runtime.
 
 ## Run The App
 
