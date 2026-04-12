@@ -1,6 +1,6 @@
 import { getCurrentAuthUser } from "@/server/auth/current-user";
 import { jsonWithCors, preflightResponse } from "@/server/http/cors";
-import { assistTaskDraft, suggestSkillSlugs } from "@/server/services/task-assistant";
+import { assistTask, suggestSkillSlugs } from "@/server/services/task-assistant";
 
 function badRequest(message: string, status = 400) {
   return jsonWithCors({ error: message }, { status });
@@ -23,7 +23,7 @@ export async function POST(request: Request) {
     return badRequest("Request body is required.");
   }
 
-  const draft = await assistTaskDraft({
+  const assistInput = {
     title: typeof body.title === "string" ? body.title : undefined,
     description: typeof body.description === "string" ? body.description : undefined,
     transcript: typeof body.transcript === "string" ? body.transcript : undefined,
@@ -36,10 +36,12 @@ export async function POST(request: Request) {
     latitude: typeof body.latitude === "number" ? body.latitude : undefined,
     longitude: typeof body.longitude === "number" ? body.longitude : undefined,
     notes: typeof body.notes === "string" ? body.notes : undefined,
-  });
+  };
+  const assist = await assistTask(assistInput);
 
   return jsonWithCors({
-    draft,
-    suggestedSkills: suggestSkillSlugs(body),
+    draft: assist.draft,
+    suggestedSkills: suggestSkillSlugs(assistInput),
+    providers: assist.providers,
   });
 }

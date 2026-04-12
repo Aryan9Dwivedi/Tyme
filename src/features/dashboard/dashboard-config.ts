@@ -42,7 +42,7 @@ export const userDashboard: DashboardConfig = {
   ownership: ["src/app/(workspace)/user", "src/features/dashboard"],
   metrics: [
     { label: "Draft tasks", value: "4", detail: "Ready for form wiring" },
-    { label: "Voice mode", value: "Planned", detail: "ElevenLabs integration lane" },
+    { label: "Voice mode", value: "Live", detail: "ElevenLabs transcription + Gemini task assist" },
     { label: "Wallet balance", value: "180 TMB", detail: "Mock token balance" },
     { label: "Nearby captains", value: "8", detail: "Recommendation-ready area" },
   ],
@@ -53,7 +53,7 @@ export const userDashboard: DashboardConfig = {
     },
     {
       title: "Voice capture entry",
-      detail: "Add a clean starting point for ElevenLabs or speech-to-text flows.",
+      detail: "Record audio, transcribe with ElevenLabs, and turn it into a polished task draft with Gemini.",
     },
     {
       title: "Task history",

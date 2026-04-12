@@ -1,11 +1,12 @@
 // @ts-nocheck
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Search, MapPin, LoaderCircle } from "lucide-react";
 
 import AppShell from "../../components/AppShell";
 import OpportunityCard from "../../components/OpportunityCard";
+import IncomingOpportunityDialog from "../../components/captain/IncomingOpportunityDialog";
 import { EmptyState } from "../../components/ui/EmptyState";
 import { acceptCaptainOpportunity, declineCaptainOpportunity, fetchCaptainOpportunities } from "@/lib/platform-api";
 import { toast } from "@/components/ui/use-toast";
@@ -14,6 +15,9 @@ export default function NearbyOpportunities() {
   const queryClient = useQueryClient();
   const [search, setSearch] = useState("");
   const [catFilter, setCatFilter] = useState("ALL");
+  const [incomingOpportunity, setIncomingOpportunity] = useState(null);
+  const seenOpportunityIdsRef = useRef(new Set());
+  const hasHydratedOpportunitiesRef = useRef(false);
 
   const opportunitiesQuery = useQuery({
     queryKey: ["captain-opportunities"],
@@ -30,6 +34,7 @@ export default function NearbyOpportunities() {
       return declineCaptainOpportunity(offerId);
     },
     onSuccess: async (_, variables) => {
+      setIncomingOpportunity(null);
       toast({
         title: variables.type === "accept" ? "Opportunity accepted" : "Opportunity passed",
         description:
@@ -64,8 +69,50 @@ export default function NearbyOpportunities() {
     new Set((opportunitiesQuery.data?.opportunities ?? []).map((opportunity) => opportunity.category)),
   );
 
+  useEffect(() => {
+    const liveOpportunities = opportunitiesQuery.data?.opportunities ?? [];
+
+    if (!liveOpportunities.length) {
+      return;
+    }
+
+    if (!hasHydratedOpportunitiesRef.current) {
+      liveOpportunities.forEach((opportunity) => seenOpportunityIdsRef.current.add(opportunity.offer_id));
+      hasHydratedOpportunitiesRef.current = true;
+      return;
+    }
+
+    const freshOpportunity = liveOpportunities.find(
+      (opportunity) => !seenOpportunityIdsRef.current.has(opportunity.offer_id),
+    );
+
+    if (!freshOpportunity) {
+      return;
+    }
+
+    seenOpportunityIdsRef.current.add(freshOpportunity.offer_id);
+    setIncomingOpportunity(freshOpportunity);
+    toast({
+      title: "New captain ping",
+      description: `${freshOpportunity.title} just hit your live queue.`,
+    });
+  }, [opportunitiesQuery.data?.opportunities]);
+
   return (
     <AppShell role="captain">
+      <IncomingOpportunityDialog
+        open={Boolean(incomingOpportunity)}
+        opportunity={incomingOpportunity}
+        onOpenChange={(open) => {
+          if (!open) {
+            setIncomingOpportunity(null);
+          }
+        }}
+        onAccept={(opportunity) => actionMutation.mutate({ offerId: opportunity.offer_id, type: "accept" })}
+        onDecline={(opportunity) => actionMutation.mutate({ offerId: opportunity.offer_id, type: "decline" })}
+        isSubmitting={actionMutation.isPending}
+      />
+
       <div className="max-w-3xl mx-auto px-4 md:px-6 py-8">
         <div className="mb-6">
           <h1 className="text-xl font-bold text-ink mb-0.5">Nearby Opportunities</h1>

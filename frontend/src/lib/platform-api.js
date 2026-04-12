@@ -16,8 +16,9 @@ function getStoredToken() {
 async function apiRequest(path, options = {}) {
   const headers = new Headers(options.headers ?? {});
   const token = options.token ?? getStoredToken();
+  const isFormDataBody = typeof FormData !== "undefined" && options.body instanceof FormData;
 
-  if (options.body && !headers.has("Content-Type")) {
+  if (options.body && !isFormDataBody && !headers.has("Content-Type")) {
     headers.set("Content-Type", "application/json");
   }
 
@@ -95,6 +96,21 @@ export function assistTask(payload) {
   return apiRequest("/api/tasks/assist", {
     method: "POST",
     body: JSON.stringify(payload),
+  });
+}
+
+export function voiceAssistTask({ file, payload, languageCode }) {
+  const formData = new FormData();
+  formData.set("audio", file);
+  formData.set("payload", JSON.stringify(payload));
+
+  if (languageCode) {
+    formData.set("languageCode", languageCode);
+  }
+
+  return apiRequest("/api/tasks/voice-assist", {
+    method: "POST",
+    body: formData,
   });
 }
 

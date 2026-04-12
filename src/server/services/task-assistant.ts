@@ -1,5 +1,7 @@
 import crypto from "node:crypto";
 
+import { getGeminiApiKey, getGeminiModel } from "@/server/services/ai-config";
+
 type AssistantCategory =
   | "errands"
   | "mobility"
@@ -12,7 +14,7 @@ type AssistantCategory =
 type AssistantTaskType = "volunteer" | "token-funded";
 type AssistantUrgency = "low" | "medium" | "high";
 
-type AssistTaskInput = {
+export type AssistTaskInput = {
   title?: string;
   description?: string;
   transcript?: string;
@@ -27,7 +29,7 @@ type AssistTaskInput = {
   notes?: string;
 };
 
-type TaskAssistDraft = {
+export type TaskAssistDraft = {
   id: string;
   title: string;
   description: string;
@@ -42,6 +44,16 @@ type TaskAssistDraft = {
   longitude: number;
   notes: string;
   voiceTranscript: string | null;
+};
+
+export type TaskAssistProviders = {
+  drafting: "gemini" | "heuristic";
+  draftingModel: string | null;
+};
+
+export type TaskAssistResult = {
+  draft: TaskAssistDraft;
+  providers: TaskAssistProviders;
 };
 
 const CATEGORY_KEYWORDS: Array<{ category: AssistantCategory; keywords: string[] }> = [
@@ -210,7 +222,8 @@ function normalizeGeminiJson(rawText: string) {
 }
 
 async function requestGeminiDraft(input: AssistTaskInput): Promise<Partial<TaskAssistDraft> | null> {
-  const apiKey = process.env.GEMINI_API_KEY;
+  const apiKey = getGeminiApiKey();
+  const model = getGeminiModel();
 
   if (!apiKey) {
     return null;
@@ -246,7 +259,7 @@ ${JSON.stringify(input, null, 2)}`,
   };
 
   const response = await fetch(
-    `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${encodeURIComponent(apiKey)}`,
+    `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent?key=${encodeURIComponent(apiKey)}`,
     {
       method: "POST",
       headers: {
@@ -315,12 +328,13 @@ function normalizeCategoryEnum(value: string | undefined, fallbackText: string) 
   return allowed.get(normalized ?? "") ?? allowed.get(inferCategory(fallbackText)) ?? "OTHER";
 }
 
-export async function assistTaskDraft(input: AssistTaskInput): Promise<TaskAssistDraft> {
+export async function assistTask(input: AssistTaskInput): Promise<TaskAssistResult> {
   const combinedText = compactWhitespace(
     [input.title, input.description, input.transcript, input.notes].filter(Boolean).join(" "),
   );
 
   const geminiDraft = await requestGeminiDraft(input);
+  const draftingProvider = geminiDraft ? "gemini" : "heuristic";
   const fallbackTitle = defaultTitleFromText(combinedText);
   const title = compactWhitespace(geminiDraft?.title || input.title || fallbackTitle);
   const description = defaultDescriptionFromText(
@@ -343,19 +357,29 @@ export async function assistTaskDraft(input: AssistTaskInput): Promise<TaskAssis
       : 0;
 
   return {
-    id: crypto.randomUUID(),
-    title,
-    description,
-    category,
-    taskType,
-    urgency,
-    tokenBudget,
-    radiusKm: inferRadius(combinedText, geminiDraft?.radiusKm ?? input.radiusKm),
-    requiredSkills,
-    locationLabel: input.locationLabel || "Current location",
-    latitude: input.latitude ?? 41.8839,
-    longitude: input.longitude ?? -87.6376,
-    notes: compactWhitespace(geminiDraft?.notes || input.notes || ""),
-    voiceTranscript: input.transcript ? compactWhitespace(input.transcript) : null,
+    draft: {
+      id: crypto.randomUUID(),
+      title,
+      description,
+      category,
+      taskType,
+      urgency,
+      tokenBudget,
+      radiusKm: inferRadius(combinedText, geminiDraft?.radiusKm ?? input.radiusKm),
+      requiredSkills,
+      locationLabel: input.locationLabel || "Current location",
+      latitude: input.latitude ?? 41.8839,
+      longitude: input.longitude ?? -87.6376,
+      notes: compactWhitespace(geminiDraft?.notes || input.notes || ""),
+      voiceTranscript: input.transcript ? compactWhitespace(input.transcript) : null,
+    },
+    providers: {
+      drafting: draftingProvider,
+      draftingModel: draftingProvider === "gemini" ? getGeminiModel() : null,
+    },
   };
+}
+
+export async function assistTaskDraft(input: AssistTaskInput): Promise<TaskAssistDraft> {
+  return (await assistTask(input)).draft;
 }

@@ -57,6 +57,11 @@ npm run frontend:check
 npm run frontend:build
 ```
 
+## Vercel Env Split
+
+- Backend Vercel project: `DATABASE_URL`, `DIRECT_URL` (optional), `AUTH_SECRET`, `CORS_ALLOW_ORIGIN`, `GEMINI_API_KEY`, `GEMINI_MODEL` (optional), `ELEVENLABS_API_KEY`, `ELEVENLABS_SPEECH_MODEL` (optional)
+- Frontend Vercel project: `VITE_API_BASE_URL` only
+
 ## Local URLs
 
 - Backend: `http://127.0.0.1:3000`

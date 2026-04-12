@@ -1,15 +1,29 @@
+// @ts-nocheck
+
+import { useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
-import { useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { ArrowRight, CheckCircle, Coins, Star, ToggleRight, Zap, LoaderCircle } from "lucide-react";
 
 import AppShell from "../../components/AppShell";
 import StatCard from "../../components/StatCard";
 import OpportunityCard from "../../components/OpportunityCard";
 import CaptainDemandPanel from "../../components/captain/CaptainDemandPanel";
+import IncomingOpportunityDialog from "../../components/captain/IncomingOpportunityDialog";
 import { AvailabilityDot, TrustScore } from "../../components/ui/StatusBadge";
-import { fetchCaptainDashboard } from "@/lib/platform-api";
+import { toast } from "@/components/ui/use-toast";
+import {
+  acceptCaptainOpportunity,
+  declineCaptainOpportunity,
+  fetchCaptainDashboard,
+} from "@/lib/platform-api";
 
 export default function CaptainDashboard() {
+  const queryClient = useQueryClient();
+  const [incomingOpportunity, setIncomingOpportunity] = useState(null);
+  const seenOpportunityIdsRef = useRef(new Set());
+  const hasHydratedOpportunitiesRef = useRef(false);
+
   const dashboardQuery = useQuery({
     queryKey: ["captain-dashboard"],
     queryFn: fetchCaptainDashboard,
@@ -26,8 +40,78 @@ export default function CaptainDashboard() {
     earnings: 0,
   };
 
+  const actionMutation = useMutation({
+    mutationFn: async ({ offerId, type }) => {
+      if (type === "accept") {
+        return acceptCaptainOpportunity(offerId);
+      }
+
+      return declineCaptainOpportunity(offerId);
+    },
+    onSuccess: async (_, variables) => {
+      setIncomingOpportunity(null);
+      toast({
+        title: variables.type === "accept" ? "Opportunity accepted" : "Opportunity passed",
+        description:
+          variables.type === "accept"
+            ? "The requester is being updated in real time now."
+            : "Tyme will keep rolling the next best fit into your lane.",
+      });
+      await queryClient.invalidateQueries({ queryKey: ["captain-dashboard"] });
+      await queryClient.invalidateQueries({ queryKey: ["captain-opportunities"] });
+      await queryClient.invalidateQueries({ queryKey: ["captain-assignments"] });
+    },
+    onError: (error) => {
+      toast({
+        title: "That action did not go through",
+        description: error.message,
+        variant: "destructive",
+      });
+    },
+  });
+
+  useEffect(() => {
+    if (!opportunities.length) {
+      return;
+    }
+
+    if (!hasHydratedOpportunitiesRef.current) {
+      opportunities.forEach((opportunity) => seenOpportunityIdsRef.current.add(opportunity.offer_id));
+      hasHydratedOpportunitiesRef.current = true;
+      return;
+    }
+
+    const freshOpportunity = opportunities.find(
+      (opportunity) => !seenOpportunityIdsRef.current.has(opportunity.offer_id),
+    );
+
+    if (!freshOpportunity) {
+      return;
+    }
+
+    seenOpportunityIdsRef.current.add(freshOpportunity.offer_id);
+    setIncomingOpportunity(freshOpportunity);
+    toast({
+      title: "New captain ping",
+      description: `${freshOpportunity.title} just landed in your queue.`,
+    });
+  }, [opportunities]);
+
   return (
     <AppShell role="captain">
+      <IncomingOpportunityDialog
+        open={Boolean(incomingOpportunity)}
+        opportunity={incomingOpportunity}
+        onOpenChange={(open) => {
+          if (!open) {
+            setIncomingOpportunity(null);
+          }
+        }}
+        onAccept={(opportunity) => actionMutation.mutate({ offerId: opportunity.offer_id, type: "accept" })}
+        onDecline={(opportunity) => actionMutation.mutate({ offerId: opportunity.offer_id, type: "decline" })}
+        isSubmitting={actionMutation.isPending}
+      />
+
       <div className="max-w-5xl mx-auto px-4 md:px-6 py-8 space-y-8">
         <div className="flex items-start justify-between gap-4">
           <div>

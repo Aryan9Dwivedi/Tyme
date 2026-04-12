@@ -143,9 +143,9 @@ export default function TaskDetail() {
   const statusLine = useMemo(() => {
     switch (task?.status) {
       case "OPEN":
-        return "Tyme has the request live and is spinning up the first ranking wave for nearby captains.";
+        return "Your request is live and the first captain wave is being prepared.";
       case "MATCHING":
-        return "Tyme is actively ranking captains, rolling through responses, and promoting the next best fit when someone passes.";
+        return "Tyme is ranking nearby captains and rolling to the next best fit when someone passes.";
       case "ASSIGNED":
         return "A captain accepted the task. You can now track the handoff below.";
       case "IN_PROGRESS":
@@ -261,13 +261,13 @@ export default function TaskDetail() {
                     <div>
                       <div className="inline-flex items-center gap-2 rounded-full bg-white/80 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-teal">
                         <span className="inline-block h-2 w-2 rounded-full bg-teal animate-pulse" />
-                        Dispatch in motion
+                        Live dispatch
                       </div>
                       <div className="mt-3 text-sm font-semibold text-ink">
-                        Now surfacing {activeRecommendation.name} in the live captain queue
+                        Pinging {activeRecommendation.name} now
                       </div>
                       <p className="mt-1 text-xs text-ink-secondary leading-relaxed">
-                        {getRecommendationStatusMeta(activeRecommendation.status).description} If someone passes, Tyme rolls to the next ranked captain automatically.
+                        {getRecommendationStatusMeta(activeRecommendation.status).description}
                       </p>
                     </div>
                     <div className="min-w-[84px] text-right">
@@ -319,9 +319,7 @@ export default function TaskDetail() {
             {(task.status === "MATCHING" || task.status === "OPEN") && (
               <div className="bg-white border border-border rounded-2xl p-5">
                 <h3 className="text-sm font-semibold text-ink mb-2">Captain ranking feed</h3>
-                <p className="text-xs text-ink-tertiary mb-4">
-                  This list updates while captains get pinged and ranked around your location.
-                </p>
+                <p className="text-xs text-ink-tertiary mb-4">Live ranking around your task location.</p>
                 {recommendations.length ? (
                   <div className="space-y-3">
                     {recommendations.map((recommendation, index) => (
