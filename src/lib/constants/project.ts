@@ -1,4 +1,4 @@
-export const APP_NAME = "TimeBridge";
+export const APP_NAME = "Tyme";
 
 export const APP_TAGLINE =
   "Turn spare time into trusted local action with a clean community-help starter.";

@@ -29,6 +29,7 @@ If Windows PowerShell blocks `npm`, run `npm.cmd install` instead.
 Notes:
 
 - Neon/Postgres and auth routes now require `DATABASE_URL` and `AUTH_SECRET`.
+- `DIRECT_URL` is optional and only helpful for local Prisma migration/debug tooling.
 - `CORS_ALLOW_ORIGIN` can stay as `*` for hackathon testing or be set to your frontend Vercel URL.
 
 ## Run The App
@@ -54,6 +55,7 @@ CORS_ALLOW_ORIGIN=https://your-frontend-project.vercel.app
 Notes:
 
 - The API routes are CORS-enabled for cross-origin frontend calls.
+- Vercel install/build works with `DATABASE_URL`; `DIRECT_URL` is not required there.
 - Run `npm run db:apply` locally before deploying schema changes.
 - If your frontend is a separate Vercel project, set its `VITE_API_BASE_URL` to this backend URL.
 

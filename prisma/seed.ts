@@ -14,7 +14,7 @@ const prisma = new PrismaClient({
   adapter: new PrismaNeon({ connectionString }),
 });
 
-const seededDemoPassword = "TimeBridge123!";
+const seededDemoPassword = "Tyme123!";
 
 async function main() {
   await prisma.rating.deleteMany();
@@ -52,7 +52,7 @@ async function main() {
   const admin = await prisma.user.create({
     data: {
       name: "Ava Admin",
-      email: "admin@timebridge.local",
+      email: "admin@tyme.local",
       passwordHash: hashedPassword,
       role: "ADMIN",
       status: "ACTIVE"
@@ -62,7 +62,7 @@ async function main() {
   const requester = await prisma.user.create({
     data: {
       name: "Maria Alvarez",
-      email: "maria@timebridge.local",
+      email: "maria@tyme.local",
       passwordHash: hashedPassword,
       phone: "+1-312-555-0101",
       role: "USER",
@@ -84,7 +84,7 @@ async function main() {
   const captainJordan = await prisma.user.create({
     data: {
       name: "Jordan Lee",
-      email: "jordan@timebridge.local",
+      email: "jordan@tyme.local",
       passwordHash: hashedPassword,
       role: "CAPTAIN",
       status: "ACTIVE",
@@ -122,7 +122,7 @@ async function main() {
   const captainPriya = await prisma.user.create({
     data: {
       name: "Priya Shah",
-      email: "priya@timebridge.local",
+      email: "priya@tyme.local",
       passwordHash: hashedPassword,
       role: "CAPTAIN",
       status: "ACTIVE",
@@ -160,7 +160,7 @@ async function main() {
   const captainAmina = await prisma.user.create({
     data: {
       name: "Amina Yusuf",
-      email: "amina@timebridge.local",
+      email: "amina@tyme.local",
       passwordHash: hashedPassword,
       role: "CAPTAIN",
       status: "ACTIVE",
