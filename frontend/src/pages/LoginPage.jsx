@@ -1,15 +1,9 @@
 import { useState } from "react";
-import { ArrowRight, ShieldCheck, Zap } from "lucide-react";
+import { ArrowRight, Zap } from "lucide-react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 
 import { useAuth } from "@/lib/AuthContext";
 import { getRoleHome } from "@/lib/auth-utils";
-
-const DEMO_LOGINS = [
-  { role: "User", email: "maria@tyme.local" },
-  { role: "Captain", email: "jordan@tyme.local" },
-  { role: "Admin", email: "admin@tyme.local" },
-];
 
 export default function LoginPage() {
   const navigate = useNavigate();
@@ -60,34 +54,7 @@ export default function LoginPage() {
             </p>
           </div>
 
-          <div className="relative space-y-4">
-            <div className="rounded-3xl border border-white/10 bg-white/5 p-5 backdrop-blur-sm">
-              <div className="flex items-center gap-3">
-                <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-teal/15">
-                  <ShieldCheck className="text-teal" size={18} />
-                </div>
-                <div>
-                  <p className="text-sm font-medium">Role-locked access</p>
-                  <p className="text-xs text-white/55">User, captain, and admin views stay separated after login.</p>
-                </div>
-              </div>
-            </div>
-
-            <div className="rounded-3xl border border-white/10 bg-white/5 p-5 backdrop-blur-sm">
-              <div className="text-xs uppercase tracking-[0.24em] text-white/45">Demo accounts</div>
-              <div className="mt-4 space-y-3">
-                {DEMO_LOGINS.map((account) => (
-                  <div key={account.role} className="flex items-center justify-between rounded-2xl border border-white/10 px-4 py-3">
-                    <div>
-                      <div className="text-sm font-medium">{account.role}</div>
-                      <div className="text-xs text-white/55">{account.email}</div>
-                    </div>
-                    <div className="text-[11px] text-white/60">Password: Tyme123!</div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          </div>
+          <div />
         </section>
 
         <section className="flex items-center justify-center px-6 py-10 md:px-10">
