@@ -184,14 +184,17 @@ export default function CaptainDemandPanel() {
             )}
           </div>
 
-          <div className="relative h-[420px] overflow-hidden bg-[#eef2f5] md:h-[520px]">
+          <div className="relative h-[460px] overflow-hidden bg-[#eef2f5] md:h-[580px]">
             {heatmapQuery.isLoading && !hotspots.length ? (
               <div className="flex h-full items-center justify-center px-6 text-sm text-ink-tertiary">
                 Loading your best next zones...
               </div>
             ) : hotspots.length ? (
               <div className="relative h-full w-full">
-                <CaptainDemandMap points={hotspots} />
+                <CaptainDemandMap
+                  key={hotspots.map((hotspot) => hotspot.id).join("|")}
+                  points={hotspots}
+                />
                 <div className="pointer-events-none absolute left-4 top-4 z-[500] inline-flex items-center gap-2 rounded-full bg-white/92 px-3 py-1.5 text-[11px] font-semibold uppercase tracking-[0.18em] text-rose-700 shadow-premium">
                   <Sparkles size={12} />
                   Demand heat

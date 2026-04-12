@@ -136,9 +136,9 @@ function buildSupportHotspots(hotspots: DemandHotspot[]) {
 
   const seed = hotspots[0];
   const supportOffsets = [
-    { key: "north", latOffset: 0.035, lngOffset: -0.008, weight: 0.82, label: seed.label === "Near you" ? "North of you" : `North of ${seed.label}` },
-    { key: "west", latOffset: 0.008, lngOffset: -0.045, weight: 0.76, label: seed.label === "Near you" ? "West of you" : `West of ${seed.label}` },
-    { key: "south", latOffset: -0.032, lngOffset: -0.016, weight: 0.7, label: seed.label === "Near you" ? "South of you" : `South of ${seed.label}` },
+    { key: "north", latOffset: 0.082, lngOffset: -0.02, weight: 0.82, label: "North corridor" },
+    { key: "west", latOffset: 0.026, lngOffset: -0.115, weight: 0.76, label: "West corridor" },
+    { key: "south", latOffset: -0.095, lngOffset: -0.038, weight: 0.7, label: "South lane" },
   ];
 
   const supportHotspots = supportOffsets.slice(0, 4 - hotspots.length).map((offset, index) => {

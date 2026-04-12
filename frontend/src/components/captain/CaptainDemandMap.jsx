@@ -1,4 +1,4 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useLayoutEffect, useRef } from "react";
 import { CircleMarker, MapContainer, TileLayer, Tooltip, useMap } from "react-leaflet";
 import L from "leaflet";
 
@@ -6,28 +6,16 @@ import "leaflet.heat";
 
 const CHICAGO_CENTER = [41.8781, -87.6298];
 
-function applyViewportBias(map) {
-  const containerWidth = map.getContainer()?.clientWidth ?? 0;
-
-  if (!containerWidth) {
-    return;
-  }
-
-  map.panBy([-Math.round(containerWidth * 0.1), 0], { animate: false });
-}
-
 function syncMapViewport(map, points) {
   map.invalidateSize({ pan: false, debounceMoveend: true });
 
   if (!points.length) {
     map.setView(CHICAGO_CENTER, 10, { animate: false });
-    applyViewportBias(map);
     return;
   }
 
   if (points.length === 1) {
-    map.setView([points[0].latitude, points[0].longitude], 10, { animate: false });
-    applyViewportBias(map);
+    map.setView([points[0].latitude, points[0].longitude], 9, { animate: false });
     return;
   }
 
@@ -45,16 +33,22 @@ function syncMapViewport(map, points) {
       [center.lat - Math.max(latSpan / 2, minLatSpan / 2), center.lng - Math.max(lngSpan / 2, minLngSpan / 2)],
       [center.lat + Math.max(latSpan / 2, minLatSpan / 2), center.lng + Math.max(lngSpan / 2, minLngSpan / 2)],
     );
-    map.fitBounds(expandedBounds.pad(0.32), { animate: false });
+    map.fitBounds(expandedBounds.pad(0.26), {
+      animate: false,
+      paddingTopLeft: [28, 28],
+      paddingBottomRight: [28, 28],
+    });
   } else {
-    map.fitBounds(bounds.pad(0.28), { animate: false });
+    map.fitBounds(bounds.pad(0.22), {
+      animate: false,
+      paddingTopLeft: [28, 28],
+      paddingBottomRight: [28, 28],
+    });
   }
 
-  if (map.getZoom() > 10) {
-    map.setZoom(10, { animate: false });
+  if (map.getZoom() > 9) {
+    map.setZoom(9, { animate: false });
   }
-
-  applyViewportBias(map);
 }
 
 function DemandHeatLayer({ points }) {
@@ -109,10 +103,10 @@ function DemandHeatLayer({ points }) {
 function DemandViewport({ points }) {
   const map = useMap();
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     const container = map.getContainer();
     let animationFrameId = 0;
-    const timeoutIds = [0, 120, 350, 900].map((delay) =>
+    const timeoutIds = [0, 150, 450, 1000, 1800].map((delay) =>
       window.setTimeout(() => {
         syncMapViewport(map, points);
         map.eachLayer((layer) => {
@@ -157,17 +151,18 @@ export default function CaptainDemandMap({ points }) {
   return (
     <MapContainer
       center={CHICAGO_CENTER}
-      zoom={10}
+      zoom={9}
       scrollWheelZoom={false}
       zoomControl={false}
       attributionControl={false}
       preferCanvas
-      className="h-full w-full bg-[#eef2f5]"
+      className="absolute inset-0 z-0 bg-[#eef2f5]"
+      style={{ height: "100%", width: "100%" }}
     >
       <TileLayer
         url="https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png"
         detectRetina
-        keepBuffer={4}
+        keepBuffer={6}
         updateWhenIdle={false}
       />
       <DemandHeatLayer points={points} />
