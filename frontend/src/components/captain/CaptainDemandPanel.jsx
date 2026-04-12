@@ -170,7 +170,7 @@ export default function CaptainDemandPanel() {
         </div>
       )}
 
-      <div className="mt-5 grid gap-5 xl:grid-cols-[minmax(0,1.35fr)_320px]">
+      <div className="mt-5 grid gap-5 xl:items-start xl:grid-cols-[minmax(0,1.35fr)_320px]">
         <div className="overflow-hidden rounded-[26px] border border-border bg-secondary shadow-sm">
           <div className="flex items-center justify-between border-b border-border px-5 py-4">
             <div>
