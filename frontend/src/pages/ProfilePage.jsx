@@ -110,7 +110,7 @@ export default function ProfilePage() {
             <div className="grid grid-cols-3 gap-3">
               <div className="text-center py-3 bg-secondary rounded-xl">
                 <div className="text-xl font-bold text-ink">{currentWallet.balance}</div>
-                <div className="text-[10px] text-ink-tertiary mt-0.5">TB Balance</div>
+                <div className="text-[10px] text-ink-tertiary mt-0.5">Wild Cash balance</div>
               </div>
               <div className="text-center py-3 bg-secondary rounded-xl">
                 <div className="text-xl font-bold text-emerald">{currentWallet.total_earned}</div>

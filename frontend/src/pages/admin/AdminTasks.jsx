@@ -82,7 +82,7 @@ export default function AdminTasks() {
                 <UrgencyBadge urgency={task.urgency} />
               </div>
               <div className="col-span-1 text-sm font-medium text-amber">
-                {task.token_budget ? `${task.token_budget} TB` : "—"}
+                {task.token_budget ? `${task.token_budget} Wild Cash` : "—"}
               </div>
               <div className="col-span-2 text-xs text-ink-tertiary">
                 {task.created_date ? formatDistanceToNow(new Date(task.created_date), { addSuffix: true }) : "—"}

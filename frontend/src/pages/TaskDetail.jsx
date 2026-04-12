@@ -85,7 +85,7 @@ export default function TaskDetail() {
   const taskQuery = useQuery({
     queryKey: ["task", id],
     queryFn: () => fetchTask(id),
-    refetchInterval: 2000,
+    refetchInterval: 1500,
     refetchIntervalInBackground: true,
   });
 
@@ -234,7 +234,7 @@ export default function TaskDetail() {
                   <Shield size={14} className="text-ink-tertiary mt-0.5 flex-shrink-0" />
                   <div>
                     <div className="text-[11px] text-ink-tertiary mb-0.5">Type</div>
-                    {task.task_type === "TOKEN_FUNDED" ? "Token funded" : "Volunteer"}
+                    {task.task_type === "TOKEN_FUNDED" ? "Wild Cash funded" : "Volunteer"}
                   </div>
                 </div>
               </div>
@@ -243,7 +243,7 @@ export default function TaskDetail() {
                 <div className="mt-5 flex items-center gap-3 p-4 bg-amber-light rounded-xl">
                   <Coins size={20} className="text-amber flex-shrink-0" />
                   <div>
-                    <div className="font-semibold text-ink">{task.token_budget} TB</div>
+                    <div className="font-semibold text-ink">{task.token_budget} Wild Cash</div>
                     <div className="text-xs text-ink-tertiary">
                       {task.payout_status === "CONFIRMED"
                         ? "Reward released to the captain after feedback was completed."

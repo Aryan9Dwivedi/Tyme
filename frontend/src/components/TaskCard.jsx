@@ -46,7 +46,7 @@ export default function TaskCard({ task, href, actions = null, compact = false }
         )}
         {task.token_budget && (
           <span className="flex items-center gap-1 text-amber font-medium">
-            <Coins size={11} /> {task.token_budget} TB
+            <Coins size={11} /> {task.token_budget} Wild Cash
           </span>
         )}
       </div>

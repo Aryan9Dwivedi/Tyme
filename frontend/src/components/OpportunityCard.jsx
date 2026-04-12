@@ -31,7 +31,7 @@ export default function OpportunityCard({ opportunity, onAccept = null, onDeclin
                 <Coins size={16} />
                 {opportunity.token_budget}
               </div>
-              <div className="text-[10px] text-ink-tertiary">TB reward</div>
+              <div className="text-[10px] text-ink-tertiary">Wild Cash reward</div>
             </div>
           )}
           {!opportunity.token_budget && (

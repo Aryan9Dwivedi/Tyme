@@ -48,6 +48,13 @@ export function fetchCaptainDashboard() {
   return apiRequest("/api/dashboard/captain");
 }
 
+export function updateCaptainAvailability(availability) {
+  return apiRequest("/api/captain/profile/availability", {
+    method: "PATCH",
+    body: JSON.stringify({ availability }),
+  });
+}
+
 export function fetchCaptainDemandHeatmap({ lastMinutes = 60, category = "", urgency = "" } = {}) {
   const params = new URLSearchParams();
 
@@ -132,6 +139,17 @@ export function declineCaptainOpportunity(offerId) {
 
 export function fetchCaptainAssignments() {
   return apiRequest("/api/captain/assignments");
+}
+
+export function fetchWalletSummary() {
+  return apiRequest("/api/wallet");
+}
+
+export function fundWallet(amount) {
+  return apiRequest("/api/wallet", {
+    method: "POST",
+    body: JSON.stringify({ amount }),
+  });
 }
 
 export function startCaptainAssignment(assignmentId) {

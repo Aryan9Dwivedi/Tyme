@@ -24,7 +24,7 @@ export default function ActiveAssignments() {
   const assignmentsQuery = useQuery({
     queryKey: ["captain-assignments"],
     queryFn: fetchCaptainAssignments,
-    refetchInterval: 2000,
+    refetchInterval: 1500,
     refetchIntervalInBackground: true,
   });
 
@@ -140,7 +140,7 @@ export default function ActiveAssignments() {
                         </div>
                         {assignment.token_budget > 0 && (
                           <div className="text-right flex-shrink-0">
-                            <div className="text-lg font-bold text-amber">{assignment.token_budget} TB</div>
+                            <div className="text-lg font-bold text-amber">{assignment.token_budget} Wild Cash</div>
                             <div className="text-[10px] text-ink-tertiary">reward</div>
                           </div>
                         )}

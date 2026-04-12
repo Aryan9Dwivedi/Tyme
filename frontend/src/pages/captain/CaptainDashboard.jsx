@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { ArrowRight, CheckCircle, Coins, Star, ToggleRight, Zap, LoaderCircle } from "lucide-react";
+import { ArrowRight, BellRing, CheckCircle, Coins, Star, ToggleLeft, ToggleRight, Zap, LoaderCircle } from "lucide-react";
 
 import AppShell from "../../components/AppShell";
 import StatCard from "../../components/StatCard";
@@ -16,9 +16,18 @@ import {
   acceptCaptainOpportunity,
   declineCaptainOpportunity,
   fetchCaptainDashboard,
+  updateCaptainAvailability,
 } from "@/lib/platform-api";
+import { useAuth } from "@/lib/AuthContext";
+
+const AVAILABILITY_CYCLE = {
+  ONLINE: "BUSY",
+  BUSY: "OFFLINE",
+  OFFLINE: "ONLINE",
+};
 
 export default function CaptainDashboard() {
+  const { refreshUser } = useAuth();
   const queryClient = useQueryClient();
   const [incomingOpportunity, setIncomingOpportunity] = useState(null);
   const seenOpportunityIdsRef = useRef(new Set());
@@ -27,7 +36,7 @@ export default function CaptainDashboard() {
   const dashboardQuery = useQuery({
     queryKey: ["captain-dashboard"],
     queryFn: fetchCaptainDashboard,
-    refetchInterval: 2000,
+    refetchInterval: 1500,
     refetchIntervalInBackground: true,
   });
 
@@ -40,6 +49,7 @@ export default function CaptainDashboard() {
     completedAssignments: 0,
     earnings: 0,
   };
+  const priorityOpportunity = incomingOpportunity ?? opportunities[0] ?? null;
 
   const actionMutation = useMutation({
     mutationFn: async ({ offerId, type }) => {
@@ -70,6 +80,34 @@ export default function CaptainDashboard() {
       });
     },
   });
+
+  const availabilityMutation = useMutation({
+    mutationFn: (nextAvailability) => updateCaptainAvailability(nextAvailability),
+    onSuccess: async (payload) => {
+      toast({
+        title: `Status set to ${payload.profile.availability.toLowerCase()}`,
+        description:
+          payload.profile.availability === "ONLINE"
+            ? "You are back in the live offer queue."
+            : payload.profile.availability === "BUSY"
+              ? "Tyme will hold new pings while you finish what is in flight."
+              : "New captain pings are paused for now.",
+      });
+      await refreshUser?.();
+      await queryClient.invalidateQueries({ queryKey: ["captain-dashboard"] });
+      await queryClient.invalidateQueries({ queryKey: ["captain-opportunities"] });
+    },
+    onError: (error) => {
+      toast({
+        title: "Could not update your status",
+        description: error.message,
+        variant: "destructive",
+      });
+    },
+  });
+
+  const currentAvailability = profile?.availability ?? "OFFLINE";
+  const nextAvailability = AVAILABILITY_CYCLE[currentAvailability] ?? "ONLINE";
 
   useEffect(() => {
     if (!opportunities.length) {
@@ -127,11 +165,68 @@ export default function CaptainDashboard() {
               <span className="text-xs text-ink-tertiary">{profile?.location_label ?? "Your service area"}</span>
             </div>
           </div>
-          <div className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-medium border bg-secondary border-border text-ink-secondary">
-            <ToggleRight size={16} />
-            {profile?.availability ?? "OFFLINE"}
-          </div>
+          <button
+            type="button"
+            onClick={() => availabilityMutation.mutate(nextAvailability)}
+            disabled={availabilityMutation.isPending}
+            className={`flex items-center gap-2 rounded-xl border px-4 py-2.5 text-sm font-medium transition-all ${
+              currentAvailability === "ONLINE"
+                ? "border-emerald/30 bg-emerald-light text-emerald"
+                : currentAvailability === "BUSY"
+                  ? "border-amber/30 bg-amber-light text-amber"
+                  : "border-border bg-secondary text-ink-secondary"
+            } ${availabilityMutation.isPending ? "opacity-70" : ""}`}
+          >
+            {currentAvailability === "ONLINE" ? <ToggleRight size={16} /> : <ToggleLeft size={16} />}
+            {availabilityMutation.isPending ? "Updating..." : currentAvailability}
+          </button>
         </div>
+
+        {priorityOpportunity && (
+          <section className="rounded-[28px] border border-teal/20 bg-gradient-to-r from-[#f4fffd] via-white to-[#fff7f4] p-5 shadow-premium md:p-6">
+            <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+              <div className="max-w-2xl">
+                <div className="inline-flex items-center gap-2 rounded-full bg-white px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-teal shadow-sm">
+                  <BellRing size={12} />
+                  New task in your live queue
+                </div>
+                <h2 className="mt-3 text-2xl font-bold tracking-tight text-ink">{priorityOpportunity.title}</h2>
+                <p className="mt-2 text-sm leading-relaxed text-ink-secondary">
+                  {priorityOpportunity.why_fit}
+                </p>
+                <div className="mt-4 flex flex-wrap gap-2">
+                  <span className="rounded-full bg-white px-3 py-1.5 text-sm font-medium text-ink shadow-sm">
+                    {priorityOpportunity.distance_km} km away
+                  </span>
+                  <span className="rounded-full bg-white px-3 py-1.5 text-sm font-medium text-ink shadow-sm">
+                    {priorityOpportunity.skill_match}% fit
+                  </span>
+                  <span className="rounded-full bg-white px-3 py-1.5 text-sm font-medium text-ink shadow-sm">
+                    {priorityOpportunity.token_budget > 0
+                      ? `${priorityOpportunity.token_budget} Wild Cash`
+                      : "Volunteer"}
+                  </span>
+                </div>
+              </div>
+              <div className="flex flex-col gap-2 sm:flex-row">
+                <button
+                  type="button"
+                  onClick={() => actionMutation.mutate({ offerId: priorityOpportunity.offer_id, type: "accept" })}
+                  className="rounded-2xl bg-ink px-5 py-3 text-sm font-medium text-white hover:bg-ink/90"
+                >
+                  Accept now
+                </button>
+                <button
+                  type="button"
+                  onClick={() => actionMutation.mutate({ offerId: priorityOpportunity.offer_id, type: "decline" })}
+                  className="rounded-2xl border border-border bg-white px-5 py-3 text-sm font-medium text-ink-secondary hover:bg-secondary"
+                >
+                  Pass
+                </button>
+              </div>
+            </div>
+          </section>
+        )}
 
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
           <StatCard
@@ -143,7 +238,7 @@ export default function CaptainDashboard() {
           />
           <StatCard label="Response Rate" value={`${profile?.response_rate ?? 0}%`} icon={Zap} sub="captain responsiveness" />
           <StatCard label="Completed" value={stats.completedAssignments} icon={CheckCircle} sub="successful handoffs" />
-          <StatCard label="Wallet" value={`${stats.earnings} TB`} icon={Coins} sub="available rewards" />
+          <StatCard label="Wallet" value={`${stats.earnings} Wild Cash`} icon={Coins} sub="available rewards" />
         </div>
 
         <CaptainDemandPanel />

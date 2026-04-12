@@ -24,8 +24,8 @@ function syncMapViewport(map, points) {
   const northEast = bounds.getNorthEast();
   const latSpan = Math.abs(northEast.lat - southWest.lat);
   const lngSpan = Math.abs(northEast.lng - southWest.lng);
-  const minLatSpan = 0.08;
-  const minLngSpan = 0.1;
+  const minLatSpan = 0.12;
+  const minLngSpan = 0.16;
 
   if (latSpan < minLatSpan || lngSpan < minLngSpan) {
     const center = bounds.getCenter();
@@ -33,13 +33,13 @@ function syncMapViewport(map, points) {
       [center.lat - Math.max(latSpan / 2, minLatSpan / 2), center.lng - Math.max(lngSpan / 2, minLngSpan / 2)],
       [center.lat + Math.max(latSpan / 2, minLatSpan / 2), center.lng + Math.max(lngSpan / 2, minLngSpan / 2)],
     );
-    map.fitBounds(expandedBounds.pad(0.28), { animate: false });
+    map.fitBounds(expandedBounds.pad(0.32), { animate: false });
   } else {
-    map.fitBounds(bounds.pad(0.24), { animate: false });
+    map.fitBounds(bounds.pad(0.28), { animate: false });
   }
 
-  if (map.getZoom() > 12) {
-    map.setZoom(12, { animate: false });
+  if (map.getZoom() > 11) {
+    map.setZoom(11, { animate: false });
   }
 }
 
@@ -98,14 +98,22 @@ function DemandViewport({ points }) {
   useEffect(() => {
     const container = map.getContainer();
     let animationFrameId = 0;
-    const timeoutId = window.setTimeout(() => {
-      syncMapViewport(map, points);
-    }, 0);
+    const timeoutIds = [0, 120, 350, 900].map((delay) =>
+      window.setTimeout(() => {
+        syncMapViewport(map, points);
+        map.eachLayer((layer) => {
+          layer.redraw?.();
+        });
+      }, delay),
+    );
 
     const queueSync = () => {
       window.cancelAnimationFrame(animationFrameId);
       animationFrameId = window.requestAnimationFrame(() => {
         syncMapViewport(map, points);
+        map.eachLayer((layer) => {
+          layer.redraw?.();
+        });
       });
     };
 
@@ -118,9 +126,10 @@ function DemandViewport({ points }) {
 
     resizeObserver?.observe(container);
     window.addEventListener("resize", queueSync);
+    map.whenReady(queueSync);
 
     return () => {
-      window.clearTimeout(timeoutId);
+      timeoutIds.forEach((timeoutId) => window.clearTimeout(timeoutId));
       window.cancelAnimationFrame(animationFrameId);
       window.removeEventListener("resize", queueSync);
       resizeObserver?.disconnect();
@@ -139,14 +148,13 @@ export default function CaptainDemandMap({ points }) {
       zoomControl={false}
       attributionControl={false}
       preferCanvas
-      className="h-full w-full bg-[#f5f1ed]"
+      className="absolute inset-0 h-full w-full bg-[#f5f1ed]"
     >
       <TileLayer
-        url="https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png"
+        url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
         detectRetina
         keepBuffer={4}
         updateWhenIdle={false}
-        subdomains="abcd"
       />
       <DemandHeatLayer points={points} />
       <DemandViewport points={points} />
@@ -166,7 +174,7 @@ export default function CaptainDemandMap({ points }) {
             <div className="space-y-1">
               <div className="text-sm font-semibold text-slate-900">{point.label}</div>
               <div className="text-xs text-slate-700">
-                {point.active_jobs} live jobs | {point.reward_pool} TB pool
+                {point.active_jobs} live jobs | {point.reward_pool} Wild Cash pool
               </div>
               <div className="text-xs text-slate-700">
                 Demand score {point.demand_score} | {point.freshest_request_mins_ago}m ago

@@ -1,4 +1,4 @@
-// Mock data for Tyme UI prototype
+﻿// Mock data for Tyme UI prototype
 
 export const mockUser = {
   id: "u1",
@@ -124,7 +124,7 @@ export const mockTasks = [
 export const mockNearbyOpportunities = [
   {
     id: "o1",
-    title: "Grocery delivery — 12 items",
+    title: "Grocery delivery â€” 12 items",
     category: "ERRANDS",
     urgency: "HIGH",
     distance_km: 0.8,
@@ -265,7 +265,7 @@ export const mockEscalations = [
   },
   {
     id: "e2",
-    task_title: "Grocery run — elderly neighbor",
+    task_title: "Grocery run â€” elderly neighbor",
     reason: "Item damage reported by user",
     priority: "MEDIUM",
     created_date: "2025-01-14T07:15:00Z",
@@ -286,9 +286,9 @@ export const mockActivityStream = [
   { id: "a2", text: "Marcus Rivera accepted an offer", time: "4m ago", type: "captain" },
   { id: "a3", text: "Assignment completed: Furniture move", time: "11m ago", type: "complete" },
   { id: "a4", text: "New captain registered: Sofia Yamamoto", time: "18m ago", type: "captain" },
-  { id: "a5", text: "Transaction confirmed: 35 TB — escrow released", time: "23m ago", type: "transaction" },
+  { id: "a5", text: "Transaction confirmed: 35 Wild Cash - escrow released", time: "23m ago", type: "transaction" },
   { id: "a6", text: "Escalation raised: Medical transport", time: "1h ago", type: "alert" },
-  { id: "a7", text: "User rated captain 5★ — Grocery run", time: "1h 12m ago", type: "rating" },
+  { id: "a7", text: "User rated captain 5â˜… â€” Grocery run", time: "1h 12m ago", type: "rating" },
   { id: "a8", text: "Task expired: Tutoring session (no captain found)", time: "2h ago", type: "expired" },
 ];
 
@@ -320,13 +320,13 @@ export const mockRatings = [
 ];
 
 export const TASK_CATEGORIES = [
-  { value: "ERRANDS", label: "Errands", icon: "🛍️", color: "amber" },
-  { value: "MOBILITY", label: "Mobility", icon: "🚗", color: "blue" },
-  { value: "WELLNESS", label: "Wellness", icon: "💚", color: "emerald" },
-  { value: "LEARNING", label: "Learning", icon: "📚", color: "teal" },
-  { value: "HOUSEHOLD", label: "Household", icon: "🏠", color: "coral" },
-  { value: "DELIVERY", label: "Delivery", icon: "📦", color: "amber" },
-  { value: "OTHER", label: "Other", icon: "✨", color: "teal" },
+  { value: "ERRANDS", label: "Errands", icon: "ðŸ›ï¸", color: "amber" },
+  { value: "MOBILITY", label: "Mobility", icon: "ðŸš—", color: "blue" },
+  { value: "WELLNESS", label: "Wellness", icon: "ðŸ’š", color: "emerald" },
+  { value: "LEARNING", label: "Learning", icon: "ðŸ“š", color: "teal" },
+  { value: "HOUSEHOLD", label: "Household", icon: "ðŸ ", color: "coral" },
+  { value: "DELIVERY", label: "Delivery", icon: "ðŸ“¦", color: "amber" },
+  { value: "OTHER", label: "Other", icon: "âœ¨", color: "teal" },
 ];
 
 export const SKILLS = [
@@ -357,3 +357,4 @@ export const URGENCY_META = {
   HIGH: { label: "High", color: "text-coral", bg: "bg-coral-light" },
   CRITICAL: { label: "Critical", color: "text-red-600", bg: "bg-red-50" },
 };
+

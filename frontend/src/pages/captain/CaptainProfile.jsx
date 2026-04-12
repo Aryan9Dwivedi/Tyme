@@ -1,4 +1,5 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { useMutation } from "@tanstack/react-query";
 import { Check, Shield, ToggleLeft, ToggleRight } from "lucide-react";
 
 import AppShell from "../../components/AppShell";
@@ -6,14 +7,20 @@ import { TrustScore, AvailabilityDot } from "../../components/ui/StatusBadge";
 import { useAuth } from "@/lib/AuthContext";
 import { getCaptainProfileViewModel } from "@/lib/auth-view-models";
 import { SKILLS } from "../../lib/mockData";
+import { updateCaptainAvailability } from "@/lib/platform-api";
+import { toast } from "@/components/ui/use-toast";
 
 export default function CaptainProfile() {
-  const { user } = useAuth();
+  const { user, refreshUser } = useAuth();
   const currentCaptainProfile = getCaptainProfileViewModel(user);
   const [availability, setAvailability] = useState(currentCaptainProfile.availability);
   const [skills, setSkills] = useState(currentCaptainProfile.skills);
   const [bio, setBio] = useState(currentCaptainProfile.bio);
   const [saved, setSaved] = useState(false);
+
+  useEffect(() => {
+    setAvailability(currentCaptainProfile.availability);
+  }, [currentCaptainProfile.availability]);
 
   const toggleSkill = (skill) => {
     setSkills((previous) =>
@@ -26,10 +33,34 @@ export default function CaptainProfile() {
     setTimeout(() => setSaved(false), 2000);
   };
 
+  const availabilityMutation = useMutation({
+    mutationFn: (nextAvailability) => updateCaptainAvailability(nextAvailability),
+    onSuccess: async (payload) => {
+      setAvailability(payload.profile.availability);
+      await refreshUser?.();
+      toast({
+        title: `Status set to ${payload.profile.availability.toLowerCase()}`,
+        description:
+          payload.profile.availability === "ONLINE"
+            ? "You are now visible for new captain pings."
+            : payload.profile.availability === "BUSY"
+              ? "New task pings are paused while you are busy."
+              : "You are hidden from new task pings for now.",
+      });
+    },
+    onError: (error) => {
+      toast({
+        title: "Could not update your status",
+        description: error.message,
+        variant: "destructive",
+      });
+    },
+  });
+
   const cycleAvailability = () => {
     const states = ["ONLINE", "BUSY", "OFFLINE"];
     const next = states[(states.indexOf(availability) + 1) % states.length];
-    setAvailability(next);
+    availabilityMutation.mutate(next);
   };
 
   return (
@@ -82,6 +113,7 @@ export default function CaptainProfile() {
             </div>
             <button
               onClick={cycleAvailability}
+              disabled={availabilityMutation.isPending}
               className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium transition-all border ${
                 availability === "ONLINE"
                   ? "bg-emerald-light border-emerald/30 text-emerald"
@@ -91,7 +123,7 @@ export default function CaptainProfile() {
               }`}
             >
               {availability === "ONLINE" ? <ToggleRight size={16} /> : <ToggleLeft size={16} />}
-              {availability}
+              {availabilityMutation.isPending ? "Updating..." : availability}
             </button>
           </div>
         </div>

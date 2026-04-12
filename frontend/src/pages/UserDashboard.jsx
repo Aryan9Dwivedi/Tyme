@@ -85,8 +85,8 @@ export default function UserDashboard() {
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
           <StatCard label="Active Tasks" value={stats.active} icon={CheckSquare} sub="currently dispatching or assigned" />
           <StatCard label="Completed" value={stats.completed} icon={CheckSquare} sub="closed successfully" trendDir="up" />
-          <StatCard label="Wallet" value={`${stats.walletBalance} TB`} icon={Coins} sub="available balance" accent />
-          <StatCard label="Pending" value={`${stats.pendingBalance} TB`} icon={Clock} sub="awaiting release" />
+          <StatCard label="Wallet" value={`${stats.walletBalance} Wild Cash`} icon={Coins} sub="available balance" accent />
+          <StatCard label="Pending" value={`${stats.pendingBalance} Wild Cash`} icon={Clock} sub="awaiting release" />
         </div>
 
         <section>

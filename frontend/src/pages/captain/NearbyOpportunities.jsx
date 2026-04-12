@@ -22,7 +22,7 @@ export default function NearbyOpportunities() {
   const opportunitiesQuery = useQuery({
     queryKey: ["captain-opportunities"],
     queryFn: fetchCaptainOpportunities,
-    refetchInterval: 2000,
+    refetchInterval: 1500,
     refetchIntervalInBackground: true,
   });
 
@@ -69,6 +69,7 @@ export default function NearbyOpportunities() {
   const categories = Array.from(
     new Set((opportunitiesQuery.data?.opportunities ?? []).map((opportunity) => opportunity.category)),
   );
+  const featuredOpportunity = incomingOpportunity ?? opportunities[0] ?? null;
 
   useEffect(() => {
     const liveOpportunities = opportunitiesQuery.data?.opportunities ?? [];
@@ -123,6 +124,49 @@ export default function NearbyOpportunities() {
             {opportunitiesQuery.isFetching && <LoaderCircle size={12} className="animate-spin text-teal" />}
           </div>
         </div>
+
+        {featuredOpportunity && (
+          <div className="mb-6 rounded-[28px] border border-teal/20 bg-gradient-to-r from-[#f4fffd] via-white to-[#fff7f4] p-5 shadow-premium">
+            <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+              <div className="max-w-2xl">
+                <div className="inline-flex items-center gap-2 rounded-full bg-white px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-teal shadow-sm">
+                  Live queue highlight
+                </div>
+                <h2 className="mt-3 text-xl font-bold text-ink">{featuredOpportunity.title}</h2>
+                <p className="mt-2 text-sm text-ink-secondary">{featuredOpportunity.why_fit}</p>
+                <div className="mt-4 flex flex-wrap gap-2 text-sm">
+                  <span className="rounded-full bg-white px-3 py-1.5 font-medium text-ink shadow-sm">
+                    {featuredOpportunity.distance_km} km away
+                  </span>
+                  <span className="rounded-full bg-white px-3 py-1.5 font-medium text-ink shadow-sm">
+                    {featuredOpportunity.skill_match}% fit
+                  </span>
+                  <span className="rounded-full bg-white px-3 py-1.5 font-medium text-ink shadow-sm">
+                    {featuredOpportunity.token_budget > 0
+                      ? `${featuredOpportunity.token_budget} Wild Cash`
+                      : "Volunteer"}
+                  </span>
+                </div>
+              </div>
+              <div className="flex flex-col gap-2 sm:flex-row">
+                <button
+                  type="button"
+                  onClick={() => actionMutation.mutate({ offerId: featuredOpportunity.offer_id, type: "accept" })}
+                  className="rounded-2xl bg-ink px-5 py-3 text-sm font-medium text-white hover:bg-ink/90"
+                >
+                  Accept now
+                </button>
+                <button
+                  type="button"
+                  onClick={() => actionMutation.mutate({ offerId: featuredOpportunity.offer_id, type: "decline" })}
+                  className="rounded-2xl border border-border bg-white px-5 py-3 text-sm font-medium text-ink-secondary hover:bg-secondary"
+                >
+                  Pass
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
 
         <div className="flex gap-3 mb-4">
           <div className="relative flex-1">

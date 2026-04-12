@@ -4,7 +4,7 @@ import AppShell from "../components/AppShell";
 const NOTIFICATIONS = [
   { id: "n1", type: "captain", icon: Zap, title: "Marcus Rivera accepted your task", desc: "Grocery pickup — he'll arrive within 30 minutes.", time: "Just now", read: false, color: "text-teal", bg: "bg-teal-light" },
   { id: "n2", type: "complete", icon: CheckCircle, title: "Task completed!", desc: "Your furniture moving task is done. Don't forget to rate your Captain.", time: "1 hour ago", read: false, color: "text-emerald", bg: "bg-emerald-light" },
-  { id: "n3", type: "token", icon: Coins, title: "Reward released — 60 TB", desc: "Tokens transferred to your wallet after task confirmation.", time: "2 hours ago", read: true, color: "text-amber", bg: "bg-amber-light" },
+  { id: "n3", type: "token", icon: Coins, title: "Reward released — 60 Wild Cash", desc: "Wild Cash moved into your wallet after task confirmation.", time: "2 hours ago", read: true, color: "text-amber", bg: "bg-amber-light" },
   { id: "n4", type: "rating", icon: Star, title: "Your Captain left a rating", desc: "Marcus left a 5-star review for your task collaboration.", time: "Yesterday", read: true, color: "text-amber", bg: "bg-amber-light" },
   { id: "n5", type: "offer", icon: Zap, title: "New offer on your task", desc: "A Captain has made an offer on your Spanish tutoring request.", time: "Yesterday", read: true, color: "text-teal", bg: "bg-teal-light" },
   { id: "n6", type: "system", icon: Bell, title: "Task expiring soon", desc: "Your 'Prescription pickup' task will expire in 2 hours without a Captain.", time: "2 days ago", read: true, color: "text-coral", bg: "bg-coral-light" },

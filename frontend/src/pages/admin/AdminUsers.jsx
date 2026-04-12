@@ -94,7 +94,7 @@ export default function AdminUsers() {
                 </span>
               </div>
               <div className="col-span-1 text-sm text-ink-secondary">{user.tasks_posted}</div>
-              <div className="col-span-2 text-sm font-medium text-ink">{user.wallet_balance > 0 ? `${user.wallet_balance} TB` : "—"}</div>
+              <div className="col-span-2 text-sm font-medium text-ink">{user.wallet_balance > 0 ? `${user.wallet_balance} Wild Cash` : "—"}</div>
               <div className="col-span-1">
                 <button className="text-xs text-teal font-medium hover:underline">View</button>
               </div>

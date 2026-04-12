@@ -1,16 +1,21 @@
-import { ArrowDownLeft, ArrowUpRight, Coins, Copy, ExternalLink, Shield } from "lucide-react";
+import { useState } from "react";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { ArrowDownLeft, ArrowUpRight, Building2, Coins, LoaderCircle, Shield } from "lucide-react";
 
 import AppShell from "../components/AppShell";
 import { useAuth } from "@/lib/AuthContext";
 import { getWalletViewModel } from "@/lib/auth-view-models";
+import { fetchWalletSummary, fundWallet } from "@/lib/platform-api";
+import { toast } from "@/components/ui/use-toast";
 import { mockTransactions } from "../lib/mockData";
 
 const TYPE_META = {
-  FUND: { label: "Funded", icon: ArrowDownLeft, color: "text-emerald" },
-  ESCROW: { label: "Escrow", icon: ArrowUpRight, color: "text-amber" },
-  REWARD: { label: "Reward", icon: ArrowDownLeft, color: "text-emerald" },
-  REFUND: { label: "Refund", icon: ArrowDownLeft, color: "text-blue-500" },
-  WITHDRAWAL: { label: "Withdrawal", icon: ArrowUpRight, color: "text-coral" },
+  FUND: { label: "Added", icon: ArrowDownLeft },
+  ESCROW: { label: "Reserved", icon: ArrowUpRight },
+  REWARD: { label: "Released", icon: ArrowDownLeft },
+  REFUND: { label: "Refunded", icon: ArrowDownLeft },
+  WITHDRAWAL: { label: "Withdrawn", icon: ArrowUpRight },
+  ADJUSTMENT: { label: "Adjusted", icon: ArrowDownLeft },
 };
 
 const STATUS_DOT = {
@@ -19,16 +24,55 @@ const STATUS_DOT = {
   FAILED: "bg-coral",
 };
 
+const DEMO_ADD_AMOUNTS = [100, 250, 500];
+
 export default function WalletPage() {
-  const { user } = useAuth();
+  const queryClient = useQueryClient();
+  const { user, refreshUser } = useAuth();
+  const [showFundingPanel, setShowFundingPanel] = useState(false);
   const currentWallet = getWalletViewModel(user);
+
+  const walletQuery = useQuery({
+    queryKey: ["wallet-summary"],
+    queryFn: fetchWalletSummary,
+    refetchInterval: 8000,
+  });
+
+  const fundingMutation = useMutation({
+    mutationFn: (amount) => fundWallet(amount),
+    onSuccess: async (_, amount) => {
+      toast({
+        title: "Demo balance added",
+        description: `${amount} Wild Cash was added to your wallet for testing.`,
+      });
+      await refreshUser?.();
+      await queryClient.invalidateQueries({ queryKey: ["wallet-summary"] });
+      await queryClient.invalidateQueries({ queryKey: ["user-dashboard"] });
+      await queryClient.invalidateQueries({ queryKey: ["captain-dashboard"] });
+    },
+    onError: (error) => {
+      toast({
+        title: "Could not add demo balance",
+        description: error.message,
+        variant: "destructive",
+      });
+    },
+  });
+
+  const wallet = walletQuery.data?.wallet ?? currentWallet;
+  const transactions = walletQuery.data?.transactions?.length
+    ? walletQuery.data.transactions
+    : mockTransactions.map((transaction) => ({
+        ...transaction,
+        reference_url: null,
+      }));
 
   return (
     <AppShell role="user">
       <div className="max-w-3xl mx-auto px-4 md:px-6 py-8 space-y-6">
         <div>
           <h1 className="text-xl font-bold text-ink mb-0.5">Wallet</h1>
-          <p className="text-sm text-ink-tertiary">Your TB token balance and transaction history</p>
+          <p className="text-sm text-ink-tertiary">Your Wild Cash balance and transaction activity.</p>
         </div>
 
         <div className="rounded-2xl overflow-hidden" style={{ background: "hsl(var(--sidebar-bg))" }}>
@@ -36,64 +80,108 @@ export default function WalletPage() {
             <div className="flex items-start justify-between mb-6">
               <div>
                 <div className="text-sm text-white/50 mb-1">Available balance</div>
-                <div className="flex items-end gap-2">
-                  <span className="text-5xl font-bold text-white">{currentWallet.balance}</span>
-                  <span className="text-white/40 text-xl mb-1">TB</span>
+                <div className="flex flex-wrap items-end gap-2">
+                  <span className="text-5xl font-bold text-white">{wallet.balance}</span>
+                  <span className="text-white/40 text-xl mb-1">Wild Cash</span>
                 </div>
               </div>
               <div className="w-12 h-12 rounded-xl bg-teal/20 flex items-center justify-center">
-                <Coins size={22} className="text-teal" />
+                {walletQuery.isFetching ? (
+                  <LoaderCircle size={20} className="animate-spin text-teal" />
+                ) : (
+                  <Coins size={22} className="text-teal" />
+                )}
               </div>
             </div>
 
             <div className="grid grid-cols-3 gap-3 mb-6">
               {[
-                { label: "In escrow", value: currentWallet.pending_balance, color: "text-amber" },
-                { label: "Total earned", value: currentWallet.total_earned, color: "text-emerald" },
-                { label: "Total spent", value: currentWallet.total_spent, color: "text-white/70" },
+                { label: "In release", value: wallet.pending_balance, color: "text-amber" },
+                { label: "Total earned", value: wallet.total_earned, color: "text-emerald" },
+                { label: "Total spent", value: wallet.total_spent, color: "text-white/70" },
               ].map((item) => (
                 <div key={item.label} className="rounded-xl px-3 py-3" style={{ background: "hsl(var(--sidebar-surface))" }}>
                   <div className="text-[10px] text-white/40 mb-1">{item.label}</div>
-                  <div className={`text-lg font-bold ${item.color}`}>{item.value} TB</div>
+                  <div className={`text-lg font-bold ${item.color}`}>{item.value} Wild Cash</div>
                 </div>
               ))}
             </div>
 
             <div className="flex gap-2">
-              <button className="flex-1 py-2.5 bg-teal text-white text-sm font-medium rounded-xl hover:bg-teal/90 transition-colors">
+              <button
+                type="button"
+                onClick={() => setShowFundingPanel((current) => !current)}
+                className="flex-1 py-2.5 bg-teal text-white text-sm font-medium rounded-xl hover:bg-teal/90 transition-colors"
+              >
                 Fund wallet
               </button>
-              <button className="flex-1 py-2.5 border border-white/20 text-white text-sm rounded-xl hover:bg-white/10 transition-colors">
+              <button
+                type="button"
+                onClick={() =>
+                  toast({
+                    title: "Withdrawals are coming soon",
+                    description: "Cash out will open after the final payout and compliance review window.",
+                  })
+                }
+                className="flex-1 py-2.5 border border-white/20 text-white text-sm rounded-xl hover:bg-white/10 transition-colors"
+              >
                 Withdraw
               </button>
             </div>
           </div>
 
-          {currentWallet.is_linked && (
-            <div className="border-t px-6 py-4 flex items-center justify-between" style={{ borderColor: "hsl(var(--sidebar-border))" }}>
-              <div className="flex items-center gap-2.5">
-                <Shield size={14} className="text-teal" />
-                <div>
-                  <div className="text-[10px] text-white/40">Linked Solana address</div>
-                  <div className="font-mono text-xs text-white/70">{currentWallet.solana_address}</div>
+          <div className="border-t px-6 py-4" style={{ borderColor: "hsl(var(--sidebar-border))" }}>
+            <div className="flex items-start gap-3">
+              <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-white/10 text-teal">
+                <Shield size={16} />
+              </div>
+              <div>
+                <div className="text-sm font-medium text-white">Payout ledger</div>
+                <div className="mt-1 text-xs leading-relaxed text-white/60">
+                  Tyme handles demo rewards inside the platform so task funding and payout flows stay easy to test.
                 </div>
               </div>
-              <div className="flex gap-2">
-                <button className="p-1.5 rounded-lg hover:bg-white/10 text-white/40 hover:text-white transition-colors">
-                  <Copy size={13} />
-                </button>
-                <button className="p-1.5 rounded-lg hover:bg-white/10 text-white/40 hover:text-white transition-colors">
-                  <ExternalLink size={13} />
-                </button>
-              </div>
             </div>
-          )}
+          </div>
         </div>
 
+        {showFundingPanel && (
+          <div className="rounded-2xl border border-border bg-white p-5 shadow-premium">
+            <div className="flex items-start gap-3">
+              <div className="mt-0.5 flex h-10 w-10 items-center justify-center rounded-2xl bg-secondary text-teal">
+                <Building2 size={18} />
+              </div>
+              <div className="min-w-0 flex-1">
+                <h2 className="font-semibold text-ink">Bank funding is coming soon</h2>
+                <p className="mt-1 text-sm leading-relaxed text-ink-secondary">
+                  Banking platform coming soon. We are waiting on SEC review and bank compliance approvals before
+                  opening live money movement.
+                </p>
+                <p className="mt-2 text-xs text-ink-tertiary">
+                  For the demo, you can add test Wild Cash instantly below.
+                </p>
+              </div>
+            </div>
+            <div className="mt-4 flex flex-wrap gap-2">
+              {DEMO_ADD_AMOUNTS.map((amount) => (
+                <button
+                  key={amount}
+                  type="button"
+                  onClick={() => fundingMutation.mutate(amount)}
+                  disabled={fundingMutation.isPending}
+                  className="rounded-full border border-border bg-canvas px-4 py-2 text-sm font-medium text-ink hover:border-teal/30 hover:bg-teal-light hover:text-teal disabled:opacity-60"
+                >
+                  {fundingMutation.isPending ? "Adding..." : `Add ${amount} Wild Cash`}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+
         <div>
-          <h2 className="font-semibold text-ink mb-4">Transaction History</h2>
+          <h2 className="font-semibold text-ink mb-4">Transaction history</h2>
           <div className="bg-white border border-border rounded-2xl overflow-hidden">
-            {mockTransactions.map((tx, index) => {
+            {transactions.map((tx, index) => {
               const meta = TYPE_META[tx.type] || TYPE_META.FUND;
               const Icon = meta.icon;
 
@@ -112,18 +200,12 @@ export default function WalletPage() {
                       <span className="text-xs text-ink-tertiary">{tx.status}</span>
                     </div>
                     <div className="text-xs text-ink-tertiary truncate">{tx.note}</div>
-                    {tx.solana_signature && (
-                      <div className="flex items-center gap-1 mt-1">
-                        <span className="font-mono text-[10px] text-ink-disabled">{tx.solana_signature}</span>
-                        <ExternalLink size={9} className="text-ink-disabled" />
-                      </div>
-                    )}
                   </div>
 
                   <div className="text-right flex-shrink-0">
                     <div className={`font-semibold text-sm ${tx.direction === "CREDIT" ? "text-emerald" : "text-ink"}`}>
                       {tx.direction === "CREDIT" ? "+" : "-"}
-                      {tx.amount} TB
+                      {tx.amount} Wild Cash
                     </div>
                     <div className="text-[10px] text-ink-tertiary mt-0.5">
                       {new Date(tx.created_date).toLocaleDateString("en-US", { month: "short", day: "numeric" })}

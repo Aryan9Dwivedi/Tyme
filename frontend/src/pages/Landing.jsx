@@ -90,7 +90,7 @@ function LiveTaskCard({ task, delay = 0 }) {
           <MapPin size={10} /> {task.distance}
         </span>
         {task.reward ? (
-          <span className="text-xs font-bold text-amber">{task.reward} TB</span>
+          <span className="text-xs font-bold text-amber">{task.reward} Wild Cash</span>
         ) : (
           <span className="text-xs font-medium text-emerald">Volunteer</span>
         )}
@@ -312,7 +312,7 @@ export default function Landing() {
           </div>
           <h2 className="font-serif text-4xl md:text-5xl text-ink mb-5">Earn by helping.<br />Spend on getting helped.</h2>
           <p className="text-ink-secondary text-lg max-w-2xl mx-auto leading-relaxed mb-8">
-            TB tokens are the lifeblood of the platform. Fund tasks to attract Captains, earn tokens by completing tasks, and build your wallet as your reputation grows.
+            Wild Cash powers rewards across the platform. Fund tasks to attract captains, earn Wild Cash by completing work, and keep your balance ready for the next request.
           </p>
           <div className="flex justify-center gap-4 flex-wrap">
             <div className="flex items-center gap-2 px-5 py-3 bg-white rounded-xl border border-border shadow-premium text-sm font-medium text-ink">

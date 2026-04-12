@@ -51,7 +51,7 @@ export default function AdminCommandCenter() {
         <div className="grid md:grid-cols-4 gap-4">
           <StatCard label="New Users Today" value={mockAdminStats.new_users_today} icon={Users} />
           <StatCard label="Transactions" value={mockAdminStats.transactions_today} sub="today" />
-          <StatCard label="Volume Today" value={`${mockAdminStats.total_volume_today} TB`} sub="all transactions" />
+          <StatCard label="Volume Today" value={`${mockAdminStats.total_volume_today} Wild Cash`} sub="all transactions" />
           <StatCard label="Escalations" value={mockEscalations.length} icon={AlertTriangle} sub={`${mockEscalations.filter(e => e.priority === "HIGH").length} high priority`} />
         </div>
 

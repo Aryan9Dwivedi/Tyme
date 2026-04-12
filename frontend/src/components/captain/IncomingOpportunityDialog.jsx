@@ -75,7 +75,7 @@ export default function IncomingOpportunityDialog({
                       <Coins size={16} />
                       {opportunity.token_budget}
                     </div>
-                    <div className="text-[10px] uppercase tracking-[0.16em] text-ink-tertiary">tb reward</div>
+                    <div className="text-[10px] uppercase tracking-[0.16em] text-ink-tertiary">Wild Cash reward</div>
                   </>
                 ) : (
                   <>

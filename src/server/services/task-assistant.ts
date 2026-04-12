@@ -225,51 +225,51 @@ const TITLE_PREFIX_PATTERNS = [
 const DESCRIPTION_TEMPLATES: DescriptionTemplate[] = [
   {
     categories: ["errands"],
-    text: "Handle a short errand for the requester, confirm the item or pickup details, and close the loop once it is done.",
+    text: "Help with a quick errand, confirm the pickup details early, and wrap up with a clean handoff.",
   },
   {
     categories: ["errands"],
-    text: "Pick up what the requester needs, keep timing clear, and complete a clean handoff at the end.",
+    text: "Pick up what the requester needs, stay clear on timing, and confirm delivery once it is done.",
   },
   {
     categories: ["mobility"],
-    text: "Help the requester get from one place to another safely and stay coordinated around arrival timing.",
+    text: "Help the requester get where they need to go safely and stay coordinated around pickup and arrival.",
   },
   {
     categories: ["mobility"],
-    text: "Provide calm travel support, confirm the route or destination, and help the requester reach the stop smoothly.",
+    text: "Provide calm travel support, confirm the destination, and keep the ride smooth from pickup to drop-off.",
   },
   {
     categories: ["wellness"],
-    text: "Step in with supportive, calm help and keep the requester comfortable and updated throughout the visit.",
+    text: "Step in with steady support, keep communication calm, and check in clearly throughout the visit.",
   },
   {
     categories: ["wellness"],
-    text: "Provide a steady wellness check-in or support visit and communicate clearly during the handoff.",
+    text: "Handle a support visit with care, stay easy to coordinate with, and leave the requester feeling looked after.",
   },
   {
     categories: ["learning"],
-    text: "Guide the requester through the topic step by step and leave them with a clear next move when the session ends.",
+    text: "Guide the requester through the topic step by step and leave them with a clear next step by the end.",
   },
   {
     categories: ["learning"],
-    text: "Help with practice, tutoring, or homework support and keep the pace easy to follow from start to finish.",
+    text: "Help with practice, tutoring, or homework support and keep the session easy to follow from start to finish.",
   },
   {
     categories: ["household"],
-    text: "Handle the practical household task safely, keep the requester updated, and leave the space in good order.",
+    text: "Handle the home task safely, keep the requester updated, and leave the space in good order.",
   },
   {
     categories: ["household"],
-    text: "Step in for a home task, keep the work tidy, and confirm once the job is wrapped up.",
+    text: "Step in for a household task, keep the work tidy, and confirm once everything is wrapped up.",
   },
   {
     categories: ["delivery"],
-    text: "Complete the pickup and drop-off cleanly, keep the requester updated on timing, and confirm the handoff at the end.",
+    text: "Complete the pickup and drop-off cleanly, keep the requester updated on timing, and confirm the final handoff.",
   },
   {
     categories: ["delivery"],
-    text: "Handle the delivery run from pickup through drop-off and communicate clearly if timing shifts.",
+    text: "Handle the delivery from pickup through drop-off and communicate quickly if timing shifts.",
   },
   {
     categories: ["other"],
@@ -277,7 +277,7 @@ const DESCRIPTION_TEMPLATES: DescriptionTemplate[] = [
   },
   {
     categories: ["other"],
-    text: "Step in for a short local task, stay coordinated on timing, and finish with a clean handoff.",
+    text: "Step in for a short local task, stay coordinated on timing, and finish with a smooth handoff.",
   },
   {
     categories: ["errands", "delivery", "mobility"],
@@ -554,8 +554,8 @@ function buildFallbackDescription(
     sentences.push("Same-day help is preferred if possible.");
   }
 
-  if (taskType === "token-funded" && !/\breward\b|\bpay\b|\btoken\b|\bbudget\b/i.test(cleanedText)) {
-    sentences.push("A token-funded reward is attached for the captain who completes it.");
+  if (taskType === "token-funded" && !/\breward\b|\bpay\b|\btoken\b|\bbudget\b|\bcash\b/i.test(cleanedText)) {
+    sentences.push("A Wild Cash reward is attached for the captain who completes it.");
   }
 
   if (cleanedNotes) {
