@@ -1,183 +1,225 @@
 # Tyme
 
-Tyme is a real-time local help platform that lets people create everyday assistance requests, match with nearby captains, and manage the full workflow from task creation to completion, feedback, and reward release.
+**Real-time local task dispatch. Users post jobs. Captains take them. Everything moves fast.**
 
-The product is designed to feel fast and operational: users can create tasks manually or through voice input, captains receive live ranked opportunities, assignments move through clear states, and both sides close the loop with feedback and Wild Cash reward tracking.
+Tyme is a hyperlocal task marketplace that connects people who need everyday help with nearby "Captains" who can provide it. Tasks flow through a structured lifecycle — creation, AI structuring, captain matching, acceptance, execution, feedback, and reward — with live status updates at every step.
 
-## Live Links
+Built as a full-stack hackathon MVP with a real deployed product, working role-based flows, voice input, AI task structuring, and a captain dispatch engine.
 
-- Live app: `https://www.tyme.website`
-- Login: `https://www.tyme.website/login`
-- Backend API: `https://api.tyme.website`
-- Repository: `https://github.com/Aryan9Dwivedi/WildHack26`
+---
 
-## What Tyme Does
+## Live
 
-Tyme supports three product roles:
+| Surface | URL |
+|---|---|
+| App | [www.tyme.website](https://www.tyme.website) |
+| Login | [www.tyme.website/login](https://www.tyme.website/login) |
+| Backend API | [api.tyme.website](https://api.tyme.website) |
+| Repository | [github.com/Aryan9Dwivedi/WildHack26](https://github.com/Aryan9Dwivedi/WildHack26) |
 
-- `User`: creates tasks, tracks matching progress, watches assignment state, and submits feedback.
-- `Captain`: receives ranked nearby opportunities, accepts or passes tasks, works active assignments, and earns Wild Cash rewards.
-- `Admin`: monitors platform activity, captains, transactions, and operational signals.
+---
 
-Core product capabilities:
+## What It Does
 
-- Manual task creation
-- Voice-assisted task creation with transcription
-- AI-assisted structuring of task details, category, urgency, and skills
-- Real-time-feeling captain matching through live polling and task offers
-- Captain opportunity feed and assignment workflow
-- Two-sided feedback after completion
-- Demo wallet funding and Wild Cash payout tracking
-- Heatmap-style captain demand intelligence
+Three roles. One workflow.
+
+| Role | Responsibilities |
+|---|---|
+| **User** | Creates tasks, monitors matching progress, tracks assignment state, submits feedback |
+| **Captain** | Receives ranked nearby opportunities, accepts/passes tasks, executes assignments, earns Wild Cash |
+| **Admin** | Monitors platform activity, captain health, wallet transactions, operational signals |
+
+### Core Capabilities
+
+- **Task creation** — manual entry or voice-to-text via browser `MediaRecorder`
+- **AI task structuring** — Gemini parses raw input into category, urgency, required skills, and a clean description
+- **Captain matching** — a recommendation engine ranks nearby captains against task requirements and pushes offers
+- **Live dispatch loop** — fast polling delivers real-time-feeling state updates without requiring WebSockets
+- **Two-sided feedback** — both user and captain submit ratings after completion
+- **Wild Cash wallet** — demo-funded wallet with full transaction history and reward payout tracking
+- **Demand heatmap** — Leaflet-powered captain heatmap view showing task density by location
+
+---
 
 ## Product Workflow
 
-The main workflow is:
+```
+User creates task (voice or manual)
+        │
+        ▼
+AI structures task → category, skills, urgency inferred
+        │
+        ▼
+Recommendation engine ranks nearby captains → TaskOffers created
+        │
+        ▼
+Captain sees live opportunity feed → accepts or passes
+        │
+        ▼
+Task becomes Assignment → Captain starts and completes
+        │
+        ▼
+Both sides submit feedback
+        │
+        ▼
+Wild Cash reward released → wallet and transaction records updated
+```
 
-1. A user logs in and creates a task.
-2. The task can be entered manually or with voice input.
-3. Tyme structures the task, suggests category and skills, and saves it.
-4. The recommendation engine ranks nearby captains and creates task offers.
-5. Captains see live opportunities, then accept or pass.
-6. Once a captain accepts, the task becomes an assignment.
-7. The user sees live status updates as the captain starts and completes the task.
-8. Both sides submit feedback.
-9. Reward release and wallet records are updated.
+---
 
-## Diagrams
+## Architecture
 
-### System Architecture
+Tyme is a monorepo split into two Vercel deployments:
 
-![Tyme System Architecture](./architecture-diagram.png)
+```
+WildHack26/
+├── frontend/               React + Vite product UI        → www.tyme.website
+├── prisma/                 Schema, migrations, seed data
+├── src/                    Next.js backend + API handlers  → api.tyme.website
+│   ├── app/                Route handlers (Next.js App Router)
+│   └── server/
+│       ├── auth/           Session management, JOSE JWTs, bcrypt
+│       ├── db/             Prisma client singleton
+│       ├── http/           CORS helpers
+│       └── services/       Core business logic (tasks, matching, AI, heatmap, wallet)
+├── scripts/
+└── public/
+```
 
-### End-to-End User Flow
+### Frontend (`frontend/`)
 
-![Tyme User Flow Diagram](./user-flow-diagram.png)
+```
+src/
+├── components/             Shared UI components, captain-specific widgets
+├── lib/                    Auth helpers, API client, utility functions
+└── pages/                  Route-level page components
+    ├── user/               Task creation, tracking, feedback
+    ├── captain/            Opportunity feed, assignment workflow
+    ├── admin/              Platform monitoring
+    └── auth/               Login, signup
+```
 
-### Database ER Diagram
+### Backend (`src/`)
 
-![Tyme Database ER Diagram](./er-diagram.png)
+API route groups under `src/app/`:
 
-## Architecture Overview
+| Group | Endpoints |
+|---|---|
+| `auth` | `login`, `signup`, `session` |
+| `tasks` | `create`, `update`, `detail`, `feedback`, `ai-assist`, `voice-assist` |
+| `captain` | `opportunities`, `assignments`, `accept`, `decline`, `availability`, `heatmap` |
+| `dashboards` | `user`, `captain` |
+| `wallet` | balance, funding, transactions |
+| `health` | API health check |
 
-Tyme is organized as a monorepo with:
-
-- a `Next.js` backend/API at the repository root
-- a `React + Vite` frontend in `frontend/`
-- a `PostgreSQL` database on Neon
-- deployment split across two Vercel projects
-
-High-level architecture:
-
-- Frontend app (`www.tyme.website`)
-  - React
-  - Vite
-  - React Router
-  - TanStack React Query
-  - Tailwind CSS
-  - Leaflet heatmap views
-- Backend API (`api.tyme.website`)
-  - Next.js route handlers
-  - Prisma ORM
-  - JOSE-based auth/session handling
-  - business logic for tasks, offers, assignments, feedback, and rewards
-- Data layer
-  - Neon PostgreSQL
-  - relational schema for users, captains, tasks, offers, assignments, wallets, transactions, and ratings
-- External intelligence/services
-  - Google Gemini API
-  - ElevenLabs API
-  - Browser Geolocation API
+---
 
 ## Tech Stack
 
 ### Frontend
 
-- React
-- Vite
-- React Router
-- TanStack React Query
-- Tailwind CSS
-- Radix UI
-- Framer Motion
-- Lucide React
-- React Leaflet
-- Leaflet Heat
+| Layer | Tech |
+|---|---|
+| Framework | React + Vite |
+| Routing | React Router |
+| Data fetching | TanStack React Query |
+| Styling | Tailwind CSS + Radix UI |
+| Animation | Framer Motion |
+| Icons | Lucide React |
+| Maps | React Leaflet + Leaflet Heat |
 
 ### Backend
 
-- Next.js
-- Node.js
-- TypeScript
-- Prisma ORM
-- JOSE
-- bcryptjs
+| Layer | Tech |
+|---|---|
+| Framework | Next.js (App Router) |
+| Language | TypeScript |
+| ORM | Prisma |
+| Auth | JOSE (JWT) + bcryptjs |
+| Runtime | Node.js 22.x |
 
-### Data / Infra
+### Data & Infrastructure
 
-- PostgreSQL
-- Neon Serverless Postgres
-- Vercel
+| Layer | Tech |
+|---|---|
+| Database | PostgreSQL (Neon Serverless) |
+| Backend deploy | Vercel |
+| Frontend deploy | Vercel |
 
-### AI / Voice
+### AI & Voice
 
-- Google Gemini API
-- ElevenLabs API
-- Browser Geolocation API
-- MediaRecorder API
+| Capability | Provider |
+|---|---|
+| Task structuring, category/skill inference | Google Gemini API |
+| Voice transcription pipeline | ElevenLabs API |
+| Voice capture | Browser MediaRecorder API |
+| Location | Browser Geolocation API |
 
-## Repository Structure
-
-```text
-WildHack26/
-  frontend/                       React + Vite product UI
-    public/                       frontend assets
-    src/
-      components/                 shared UI and captain-specific components
-      lib/                        auth, API client, helpers
-      pages/                      user, captain, admin, auth pages
-  prisma/
-    migrations/                   database migrations
-    schema.prisma                 production schema
-    seed.ts                       demo/test data
-  public/                         backend public assets
-  scripts/                        repo scripts
-  src/
-    app/                          Next.js routes and API handlers
-    components/                   backend status UI
-    server/
-      auth/                       auth/session/password helpers
-      db/                         Prisma wiring
-      http/                       CORS helpers
-      services/                   task flow, matching, AI, heatmap, wallet logic
-    types/                        shared backend types
-  README.md
-  package.json
-```
+---
 
 ## Database Model
 
-The core relational model includes:
+Core entities and their roles:
 
-- `User`
-- `CaptainProfile`
-- `Skill`
-- `CaptainSkill`
-- `Task`
-- `TaskSkill`
-- `TaskOffer`
-- `Assignment`
-- `Rating`
-- `Wallet`
-- `Transaction`
+| Model | Purpose |
+|---|---|
+| `User` | Platform user accounts |
+| `CaptainProfile` | Captain-specific data, availability, location |
+| `Skill` | Skill taxonomy |
+| `CaptainSkill` | Captain ↔ Skill join |
+| `Task` | Task records with status, location, category |
+| `TaskSkill` | Task ↔ required Skill join |
+| `TaskOffer` | Per-captain offer from matching engine |
+| `Assignment` | Active task ↔ captain binding with lifecycle state |
+| `Rating` | Two-sided feedback after completion |
+| `Wallet` | Per-user balance tracking |
+| `Transaction` | Full transaction ledger (funding, rewards, payouts) |
 
-This schema powers:
+### State Machines
 
-- role-based access
-- captain matching
-- assignment state transitions
-- feedback loops
-- reward and wallet tracking
+**Task status:** `PENDING` → `MATCHING` → `ASSIGNED` → `IN_PROGRESS` → `COMPLETED`
+
+**Assignment status:** `ACCEPTED` → `STARTED` → `COMPLETED`
+
+**TaskOffer status:** `PENDING` → `ACCEPTED` | `DECLINED` | `EXPIRED`
+
+---
+
+## Matching Engine
+
+The recommendation engine sits in `src/server/services/` and is responsible for:
+
+1. Scoring and ranking available captains against an incoming task (location proximity, skill overlap, availability)
+2. Creating `TaskOffer` records for the top-ranked captains
+3. Rolling offers forward when a captain passes or an offer expires
+4. Feeding assignment state back to the user dashboard via polling
+
+The system intentionally uses **fast polling** over WebSockets. Under hackathon constraints this is the correct tradeoff — no socket infrastructure to manage, full compatibility with Vercel's serverless edge, and the UX feels live enough at a 2–5s refresh interval.
+
+---
+
+## AI Task Structuring
+
+When a user submits raw task input (typed or transcribed), the backend calls the Gemini API with a structured prompt that extracts:
+
+- **Category** — what type of task this is (delivery, repair, cleaning, etc.)
+- **Urgency** — inferred priority level
+- **Required skills** — matched against the platform skill taxonomy
+- **Cleaned description** — normalized, consistent task description
+
+This reduces friction for users and improves matching quality by ensuring tasks have consistent structured metadata rather than freeform text.
+
+---
+
+## Voice Input Pipeline
+
+1. Browser captures audio via `MediaRecorder` API
+2. Audio blob is sent to the backend `/tasks/voice-assist` endpoint
+3. Backend calls the ElevenLabs transcription API
+4. Transcript is passed through the same Gemini structuring pipeline
+5. Structured task fields are returned to the frontend for user review before saving
+
+---
 
 ## Local Development
 
@@ -185,7 +227,7 @@ This schema powers:
 
 - Node.js `22.x`
 - npm
-- a Neon PostgreSQL database
+- A [Neon](https://neon.tech) PostgreSQL database (free tier works)
 
 ### Install
 
@@ -196,155 +238,118 @@ npm run frontend:install
 
 ### Environment Variables
 
-Create a root `.env` for the backend.
+**Backend** — create `.env` at the repo root:
 
-Important backend envs:
+```env
+DATABASE_URL=           # Neon pooled connection string
+DIRECT_URL=             # Neon direct connection (optional, for local Prisma tooling)
+AUTH_SECRET=            # Random secret for JWT signing
+CORS_ALLOW_ORIGIN=      # Frontend origin, e.g. http://127.0.0.1:4173
+GEMINI_API_KEY=
+GEMINI_MODEL=           # e.g. gemini-1.5-flash
+ELEVENLABS_API_KEY=
+ELEVENLABS_SPEECH_MODEL=
+```
 
-- `DATABASE_URL`
-- `DIRECT_URL` (optional for local tooling)
-- `AUTH_SECRET`
-- `CORS_ALLOW_ORIGIN`
-- `GEMINI_API_KEY`
-- `GEMINI_MODEL`
-- `ELEVENLABS_API_KEY`
-- `ELEVENLABS_SPEECH_MODEL`
+**Frontend** — create `frontend/.env`:
 
-Frontend env in `frontend/.env`:
+```env
+VITE_API_BASE_URL=http://127.0.0.1:3000
+```
 
-- `VITE_API_BASE_URL`
-
-Example values are already documented in [.env.example](./.env.example) and [frontend/.env.example](./frontend/.env.example).
+See `.env.example` and `frontend/.env.example` for reference values.
 
 ### Database Setup
 
 ```bash
-npm run db:generate
-npm run db:apply
-npm run db:seed
+npm run db:generate   # Generate Prisma client
+npm run db:apply      # Apply migrations to your Neon DB
+npm run db:seed       # Seed demo users, captains, tasks, and wallet data
 ```
 
-### Run Locally
-
-Backend:
+### Run
 
 ```bash
+# Terminal 1 — backend
 npm run dev
-```
 
-Frontend:
-
-```bash
+# Terminal 2 — frontend
 npm run frontend:dev
 ```
 
-Local URLs:
+| Service | Local URL |
+|---|---|
+| Backend API | `http://127.0.0.1:3000` |
+| Frontend | `http://127.0.0.1:4173` |
 
-- Backend: `http://127.0.0.1:3000`
-- Frontend: `http://127.0.0.1:4173`
+---
 
 ## Deployment
 
-Tyme is deployed as two Vercel projects from the same repository:
+Two Vercel projects, one repository.
 
 ### Backend project
 
-- Root directory: `/`
-- Domain: `api.tyme.website`
+| Setting | Value |
+|---|---|
+| Root directory | `/` |
+| Domain | `api.tyme.website` |
 
-Required backend envs:
-
-- `DATABASE_URL`
-- `AUTH_SECRET`
-- `CORS_ALLOW_ORIGIN`
-- `GEMINI_API_KEY`
-- `ELEVENLABS_API_KEY`
+Required env vars: `DATABASE_URL`, `AUTH_SECRET`, `CORS_ALLOW_ORIGIN`, `GEMINI_API_KEY`, `ELEVENLABS_API_KEY`
 
 ### Frontend project
 
-- Root directory: `frontend`
-- Domain: `www.tyme.website`
+| Setting | Value |
+|---|---|
+| Root directory | `frontend/` |
+| Domain | `www.tyme.website` |
 
-Required frontend env:
+Required env var: `VITE_API_BASE_URL=https://api.tyme.website`
 
-- `VITE_API_BASE_URL=https://api.tyme.website`
-
-## Key API Areas
-
-The backend currently exposes route groups for:
-
-- auth
-  - login
-  - signup
-  - session lookup
-- tasks
-  - create
-  - update
-  - detail
-  - feedback
-  - AI assist
-  - voice assist
-- captain
-  - opportunities
-  - assignments
-  - accept / decline flows
-  - availability
-  - heatmap
-- dashboards
-  - user
-  - captain
-- wallet
-- health
-
-## Matching and Real-Time Feel
-
-Tyme currently delivers a live product feel through fast polling and API refresh rather than sockets. That approach keeps the experience responsive while staying simpler to ship under hackathon constraints.
-
-The recommendation engine is responsible for:
-
-- ranking captains against a task
-- creating and rolling task offers
-- surfacing opportunities on captain dashboards
-- feeding task state visibility back to the user
+---
 
 ## Quality Checks
 
-Useful project commands:
-
 ```bash
-npm run check
-npm run frontend:build
-npm run frontend:check
-npm run build
-npm run build:all
+npm run check             # Type-check backend
+npm run build             # Build backend
+npm run frontend:check    # Type-check frontend
+npm run frontend:build    # Build frontend
+npm run build:all         # Build both
 ```
 
-## Why This Repo Looks This Way
+---
 
-This repository is the single source of truth for Tyme.
+## Diagrams
 
-- Backend/API lives at the repository root
-- Product frontend lives in `frontend/`
-- Database schema and seed data live in `prisma/`
+| Diagram | File |
+|---|---|
+| System Architecture | `architecture-diagram.png` |
+| End-to-End User Flow | `user-flow-diagram.png` |
+| Database ER Diagram | `er-diagram.png` |
 
-The earlier split frontend repo is no longer the main development source.
+---
 
-## Current Scope
+## Scope and Tradeoffs
 
-This project is optimized for a strong hackathon MVP:
+This is an optimized hackathon MVP. What's real:
 
-- working role-based product flows
-- deployed frontend and backend
-- voice + AI-assisted task creation
-- captain dispatch flow
-- assignment lifecycle
-- feedback and reward logic
+- Full role-based product flows (user, captain, admin)
+- Voice + AI-assisted task creation with structured output
+- Captain dispatch and offer rolling
+- Full assignment lifecycle with status transitions
+- Two-sided feedback and rating system
+- Wild Cash wallet with transaction ledger
 
-Some parts are intentionally demo-oriented:
+What's intentionally demo-grade:
 
-- Wild Cash wallet funding includes demo funding behavior
-- real-time updates use live polling instead of sockets
-- production-grade compliance, payments, and trust/safety systems would be the next layer
+- **Wallet funding** includes a demo top-up flow rather than a real payment processor
+- **Real-time updates** use polling instead of WebSockets (correct tradeoff for Vercel serverless)
+- **Trust and safety**, KYC, and dispute resolution are out of scope for this release
+- **Production-grade auth** hardening (token rotation, refresh flows, device management) would be the next layer
+
+---
 
 ## License
 
-This repository is currently shared as a hackathon project codebase. Add a formal license if you plan to open-source or commercialize it further.
+Shared as a hackathon project codebase. Add a formal license before open-sourcing or commercializing.
