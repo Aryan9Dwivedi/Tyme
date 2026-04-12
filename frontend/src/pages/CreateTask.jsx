@@ -76,6 +76,14 @@ function extractFirstSentence(value) {
   return sentence.length > 90 ? `${sentence.slice(0, 87)}...` : sentence;
 }
 
+function formatCoordinate(value) {
+  if (typeof value !== "number" || Number.isNaN(value)) {
+    return null;
+  }
+
+  return value.toFixed(5);
+}
+
 export default function CreateTask() {
   const navigate = useNavigate();
   const { id } = useParams();
@@ -83,7 +91,9 @@ export default function CreateTask() {
   const isEditing = Boolean(id);
   const shouldStartVoice = searchParams.get("voice") === "1";
   const [form, setForm] = useState(createEmptyForm);
-  const [locationStatus, setLocationStatus] = useState("Detecting your location...");
+  const [locationStatus, setLocationStatus] = useState(
+    "Checking your device location so nearby captains start from the right place...",
+  );
   const [isRecording, setIsRecording] = useState(false);
   const [skillsTouched, setSkillsTouched] = useState(false);
   const [manualSkill, setManualSkill] = useState("");
@@ -125,7 +135,7 @@ export default function CreateTask() {
       voiceTranscript: task.voice_transcript ?? "",
     });
     hasHydratedEditRef.current = true;
-    setLocationStatus(task.location_address ? "Using saved task location." : "Location ready");
+    setLocationStatus(task.location_address ? "Using the saved task location for this request." : "Location ready");
   }, [taskQuery.data]);
 
   const assistMutation = useMutation({
@@ -204,9 +214,9 @@ export default function CreateTask() {
           latitude: current.latitude ?? Number(position.coords.latitude.toFixed(6)),
           longitude: current.longitude ?? Number(position.coords.longitude.toFixed(6)),
           locationLabel:
-            current.locationLabel || "Near my current location",
+            current.locationLabel || "Current device location",
         }));
-        setLocationStatus("Location captured automatically.");
+        setLocationStatus("Live location captured. Captains will be ranked around this pin.");
       },
       () => {
         setLocationStatus("We could not read your location. You can still type it in manually.");
@@ -384,14 +394,25 @@ export default function CreateTask() {
           ...current,
           latitude: Number(position.coords.latitude.toFixed(6)),
           longitude: Number(position.coords.longitude.toFixed(6)),
-          locationLabel: current.locationLabel || "Near my current location",
+          locationLabel: current.locationLabel || "Current device location",
         }));
-        setLocationStatus("Location refreshed.");
+        setLocationStatus("Live location refreshed. Matching will use your latest device pin.");
       },
       () => setLocationStatus("We could not refresh your location."),
       { enableHighAccuracy: true, timeout: 10000 },
     );
   };
+
+  const locationCoordinates = useMemo(() => {
+    const latitude = formatCoordinate(form.latitude);
+    const longitude = formatCoordinate(form.longitude);
+
+    if (!latitude || !longitude) {
+      return null;
+    }
+
+    return `${latitude}, ${longitude}`;
+  }, [form.latitude, form.longitude]);
 
   const submitTask = (publish) => {
     if (!form.title.trim() || !form.description.trim()) {
@@ -635,10 +656,15 @@ export default function CreateTask() {
                     value={form.locationLabel}
                     onChange={(event) => setForm((current) => ({ ...current, locationLabel: event.target.value }))}
                     className="input-premium pl-10"
-                    placeholder="Near my current location"
+                    placeholder="Apartment lobby, campus gate, or current device location"
                   />
                 </div>
                 <p className="text-xs text-ink-tertiary mt-2">{locationStatus}</p>
+                {locationCoordinates && (
+                  <p className="text-xs text-teal mt-1">
+                    Live coordinates ready: {locationCoordinates}. You can rename the location label above if you want.
+                  </p>
+                )}
               </div>
 
               <div>

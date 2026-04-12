@@ -451,9 +451,32 @@ export async function recommendationViewForCaptain(taskId: string, captainUserId
   return recommendations?.find((recommendation) => recommendation.captain.id === captainUserId) ?? null;
 }
 
-export async function topRecommendationViews(taskId: string, limit = 4) {
+export async function topRecommendationViews(taskId: string, limit = 7) {
   const recommendations = await getTaskRecommendations(taskId, limit);
-  return (
-    recommendations?.map((recommendation) => recommendationViewFromRanking(recommendation)) ?? []
+
+  if (!recommendations?.length) {
+    return [];
+  }
+
+  const offers = await prisma.taskOffer.findMany({
+    where: { taskId },
+    select: {
+      captainId: true,
+      status: true,
+    },
+  });
+
+  const statusByCaptainId = new Map(
+    offers.map((offer) => [
+      offer.captainId,
+      offer.status === "PENDING" ? "PINGED" : offer.status,
+    ]),
+  );
+
+  return recommendations.map((recommendation) =>
+    recommendationViewFromRanking(
+      recommendation,
+      statusByCaptainId.get(recommendation.captain.id) ?? "QUEUED",
+    ),
   );
 }

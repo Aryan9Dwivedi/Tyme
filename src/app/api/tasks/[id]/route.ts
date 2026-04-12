@@ -147,7 +147,7 @@ export async function GET(
   const recommendations =
     task.status === "DRAFT" || task.status === "COMPLETED"
       ? []
-      : await topRecommendationViews(task.id, 5);
+      : await topRecommendationViews(task.id, 7);
 
   return jsonWithCors({
     task: taskViewFromRecord(task),
@@ -233,7 +233,7 @@ export async function PATCH(
 
   const updatedTask = await loadTask(id);
   const recommendations =
-    updatedTask && updatedTask.status !== "DRAFT" ? await topRecommendationViews(id, 5) : [];
+    updatedTask && updatedTask.status !== "DRAFT" ? await topRecommendationViews(id, 7) : [];
 
   return jsonWithCors({
     task: updatedTask ? taskViewFromRecord(updatedTask) : null,

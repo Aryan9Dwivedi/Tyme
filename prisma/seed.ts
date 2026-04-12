@@ -81,141 +81,267 @@ async function main() {
     }
   });
 
-  const captainJordan = await prisma.user.create({
-    data: {
+  async function createCaptain(definition: {
+    name: string;
+    email: string;
+    headline: string;
+    bio: string;
+    availabilityStatus: "ONLINE" | "BUSY" | "OFFLINE";
+    availabilityWindow: string;
+    isAvailableNow: boolean;
+    trustScore: number;
+    responseRate: number;
+    tasksCompleted: number;
+    locationLabel: string;
+    latitude: number;
+    longitude: number;
+    radiusKm: number;
+    balanceTokens: number;
+    lastSyncedAt: string;
+    solanaAddress: string;
+    skills: string[];
+  }) {
+    return prisma.user.create({
+      data: {
+        name: definition.name,
+        email: definition.email,
+        passwordHash: hashedPassword,
+        role: "CAPTAIN",
+        status: "ACTIVE",
+        captainProfile: {
+          create: {
+            headline: definition.headline,
+            bio: definition.bio,
+            availabilityStatus: definition.availabilityStatus,
+            availabilityWindow: definition.availabilityWindow,
+            isAvailableNow: definition.isAvailableNow,
+            trustScore: definition.trustScore,
+            responseRate: definition.responseRate,
+            tasksCompleted: definition.tasksCompleted,
+            locationLabel: definition.locationLabel,
+            latitude: definition.latitude,
+            longitude: definition.longitude,
+            radiusKm: definition.radiusKm,
+          },
+        },
+        wallet: {
+          create: {
+            network: "SOLANA_DEVNET",
+            solanaAddress: definition.solanaAddress,
+            balanceTokens: definition.balanceTokens,
+            lastSyncedAt: new Date(definition.lastSyncedAt),
+          },
+        },
+      },
+      include: {
+        captainProfile: true,
+        wallet: true,
+      },
+    });
+  }
+
+  const captainDefinitions = [
+    {
       name: "Jordan Lee",
       email: "jordan@tyme.local",
-      passwordHash: hashedPassword,
-      role: "CAPTAIN",
-      status: "ACTIVE",
-      captainProfile: {
-        create: {
-          headline: "Fast responder for errands and senior support",
-          bio: "Trusted neighborhood captain for medicine pickups and elder support.",
-          availabilityStatus: "ONLINE",
-          availabilityWindow: "Available now until 7 PM",
-          isAvailableNow: true,
-          trustScore: 94,
-          responseRate: 0.96,
-          tasksCompleted: 61,
-          locationLabel: "West Town, Chicago",
-          latitude: 41.8938,
-          longitude: -87.6722,
-          radiusKm: 8
-        }
-      },
-      wallet: {
-        create: {
-          network: "SOLANA_DEVNET",
-          solanaAddress: "3S6v9LmNPqRsTuVwXyZaBCdEfGhJKLmNoPqRstUvWxY1",
-          balanceTokens: 180,
-          lastSyncedAt: new Date("2026-04-11T17:10:00.000Z")
-        }
-      }
+      headline: "Fast responder for errands and senior support",
+      bio: "Trusted neighborhood captain for medicine pickups and elder support.",
+      availabilityStatus: "ONLINE" as const,
+      availabilityWindow: "Available now until 7 PM",
+      isAvailableNow: true,
+      trustScore: 94,
+      responseRate: 0.96,
+      tasksCompleted: 61,
+      locationLabel: "West Town, Chicago",
+      latitude: 41.8938,
+      longitude: -87.6722,
+      radiusKm: 8,
+      balanceTokens: 180,
+      lastSyncedAt: "2026-04-11T17:10:00.000Z",
+      solanaAddress: "3S6v9LmNPqRsTuVwXyZaBCdEfGhJKLmNoPqRstUvWxY1",
+      skills: ["errands", "senior-support", "mobility"],
     },
-    include: {
-      captainProfile: true,
-      wallet: true
-    }
-  });
-
-  const captainPriya = await prisma.user.create({
-    data: {
+    {
       name: "Priya Shah",
       email: "priya@tyme.local",
-      passwordHash: hashedPassword,
-      role: "CAPTAIN",
-      status: "ACTIVE",
-      captainProfile: {
-        create: {
-          headline: "Reliable volunteer with education and delivery experience",
-          bio: "Focused on tutoring, delivery support, and student-facing tasks.",
-          availabilityStatus: "BUSY",
-          availabilityWindow: "Available in 40 minutes",
-          isAvailableNow: false,
-          trustScore: 92,
-          responseRate: 0.91,
-          tasksCompleted: 45,
-          locationLabel: "River North, Chicago",
-          latitude: 41.8924,
-          longitude: -87.6341,
-          radiusKm: 10
-        }
-      },
-      wallet: {
-        create: {
-          network: "SOLANA_DEVNET",
-          solanaAddress: "7Zr4StUvWxY12AbCdEfGhJKLmNoPqRsTuVwXyZaBCdE3",
-          balanceTokens: 140,
-          lastSyncedAt: new Date("2026-04-11T16:45:00.000Z")
-        }
-      }
+      headline: "Reliable volunteer with education and delivery experience",
+      bio: "Focused on tutoring, delivery support, and student-facing tasks.",
+      availabilityStatus: "BUSY" as const,
+      availabilityWindow: "Available in 40 minutes",
+      isAvailableNow: false,
+      trustScore: 92,
+      responseRate: 0.91,
+      tasksCompleted: 45,
+      locationLabel: "River North, Chicago",
+      latitude: 41.8924,
+      longitude: -87.6341,
+      radiusKm: 10,
+      balanceTokens: 140,
+      lastSyncedAt: "2026-04-11T16:45:00.000Z",
+      solanaAddress: "7Zr4StUvWxY12AbCdEfGhJKLmNoPqRsTuVwXyZaBCdE3",
+      skills: ["teaching", "math", "student-support", "delivery"],
     },
-    include: {
-      captainProfile: true,
-      wallet: true
-    }
-  });
-
-  const captainAmina = await prisma.user.create({
-    data: {
+    {
       name: "Amina Yusuf",
       email: "amina@tyme.local",
-      passwordHash: hashedPassword,
-      role: "CAPTAIN",
-      status: "ACTIVE",
-      captainProfile: {
-        create: {
-          headline: "Patient helper for wellness and check-in tasks",
-          bio: "Strong at care check-ins, household support, and calm response work.",
-          availabilityStatus: "ONLINE",
-          availabilityWindow: "Available now until 5 PM",
-          isAvailableNow: true,
-          trustScore: 96,
-          responseRate: 0.88,
-          tasksCompleted: 39,
-          locationLabel: "South Loop, Chicago",
-          latitude: 41.8708,
-          longitude: -87.6257,
-          radiusKm: 9
-        }
-      },
-      wallet: {
-        create: {
-          network: "SOLANA_DEVNET",
-          solanaAddress: "9YxWvUtSrQpNoMLkJiHgFeDcBaZyXwVuTsRqPoNmLkJ4",
-          balanceTokens: 205,
-          lastSyncedAt: new Date("2026-04-11T16:20:00.000Z")
-        }
-      }
-    },
-    include: {
-      captainProfile: true,
-      wallet: true
-    }
-  });
-
-  const captainSkills = [
-    {
-      captainProfileId: captainJordan.captainProfile!.id,
-      slugs: ["errands", "senior-support", "mobility"]
+      headline: "Patient helper for wellness and check-in tasks",
+      bio: "Strong at care check-ins, household support, and calm response work.",
+      availabilityStatus: "ONLINE" as const,
+      availabilityWindow: "Available now until 5 PM",
+      isAvailableNow: true,
+      trustScore: 96,
+      responseRate: 0.88,
+      tasksCompleted: 39,
+      locationLabel: "South Loop, Chicago",
+      latitude: 41.8708,
+      longitude: -87.6257,
+      radiusKm: 9,
+      balanceTokens: 205,
+      lastSyncedAt: "2026-04-11T16:20:00.000Z",
+      solanaAddress: "9YxWvUtSrQpNoMLkJiHgFeDcBaZyXwVuTsRqPoNmLkJ4",
+      skills: ["wellness", "household", "senior-support"],
     },
     {
-      captainProfileId: captainPriya.captainProfile!.id,
-      slugs: ["teaching", "math", "student-support", "delivery"]
+      name: "Sofia Martinez",
+      email: "sofia@tyme.local",
+      headline: "Delivery-focused captain for tight windows",
+      bio: "Great for errands, pickups, and fast neighborhood drop-offs.",
+      availabilityStatus: "ONLINE" as const,
+      availabilityWindow: "Available now until 8 PM",
+      isAvailableNow: true,
+      trustScore: 90,
+      responseRate: 0.93,
+      tasksCompleted: 28,
+      locationLabel: "West Loop, Chicago",
+      latitude: 41.8827,
+      longitude: -87.6466,
+      radiusKm: 7,
+      balanceTokens: 132,
+      lastSyncedAt: "2026-04-11T15:50:00.000Z",
+      solanaAddress: "8KmPqRsTuVwXyZaBCdEfGhJKLmNoPqRsTuVwXyZaBCd5",
+      skills: ["delivery", "errands", "mobility"],
     },
     {
-      captainProfileId: captainAmina.captainProfile!.id,
-      slugs: ["wellness", "household", "senior-support"]
-    }
+      name: "Ethan Brooks",
+      email: "ethan@tyme.local",
+      headline: "Mobility and household support specialist",
+      bio: "Helps with rides, lifting, and time-sensitive household support.",
+      availabilityStatus: "ONLINE" as const,
+      availabilityWindow: "Available now until 9 PM",
+      isAvailableNow: true,
+      trustScore: 89,
+      responseRate: 0.9,
+      tasksCompleted: 34,
+      locationLabel: "Lincoln Park, Chicago",
+      latitude: 41.9243,
+      longitude: -87.6464,
+      radiusKm: 11,
+      balanceTokens: 121,
+      lastSyncedAt: "2026-04-11T15:40:00.000Z",
+      solanaAddress: "6GhJKLmNoPqRsTuVwXyZaBCdEfGhJKLmNoPqRsTuVwX6",
+      skills: ["mobility", "household", "errands"],
+    },
+    {
+      name: "Nia Okafor",
+      email: "nia@tyme.local",
+      headline: "Warm wellness and senior-support captain",
+      bio: "Reliable for check-ins, calm support, and appointment follow-through.",
+      availabilityStatus: "BUSY" as const,
+      availabilityWindow: "Available in 25 minutes",
+      isAvailableNow: false,
+      trustScore: 95,
+      responseRate: 0.87,
+      tasksCompleted: 52,
+      locationLabel: "Hyde Park, Chicago",
+      latitude: 41.7943,
+      longitude: -87.5907,
+      radiusKm: 12,
+      balanceTokens: 166,
+      lastSyncedAt: "2026-04-11T15:10:00.000Z",
+      solanaAddress: "5CdEfGhJKLmNoPqRsTuVwXyZaBCdEfGhJKLmNoPqRsT7",
+      skills: ["wellness", "senior-support", "household"],
+    },
+    {
+      name: "Lucas Chen",
+      email: "lucas@tyme.local",
+      headline: "Quick local runner for delivery and pickups",
+      bio: "Best on short-radius tasks where speed and communication matter.",
+      availabilityStatus: "ONLINE" as const,
+      availabilityWindow: "Available now for the next 3 hours",
+      isAvailableNow: true,
+      trustScore: 88,
+      responseRate: 0.94,
+      tasksCompleted: 22,
+      locationLabel: "Wicker Park, Chicago",
+      latitude: 41.9076,
+      longitude: -87.6777,
+      radiusKm: 8,
+      balanceTokens: 118,
+      lastSyncedAt: "2026-04-11T15:05:00.000Z",
+      solanaAddress: "4BCdEfGhJKLmNoPqRsTuVwXyZaBCdEfGhJKLmNoPqRs8",
+      skills: ["delivery", "errands", "household"],
+    },
+    {
+      name: "Elena Petrova",
+      email: "elena@tyme.local",
+      headline: "Patient tutor and student-support captain",
+      bio: "Strong fit for learning, reading help, and study accountability requests.",
+      availabilityStatus: "ONLINE" as const,
+      availabilityWindow: "Available now until 6 PM",
+      isAvailableNow: true,
+      trustScore: 93,
+      responseRate: 0.89,
+      tasksCompleted: 47,
+      locationLabel: "Lakeview, Chicago",
+      latitude: 41.9411,
+      longitude: -87.6537,
+      radiusKm: 10,
+      balanceTokens: 154,
+      lastSyncedAt: "2026-04-11T14:55:00.000Z",
+      solanaAddress: "3ZaBCdEfGhJKLmNoPqRsTuVwXyZaBCdEfGhJKLmNoP9",
+      skills: ["teaching", "student-support", "math"],
+    },
+    {
+      name: "Malik Thompson",
+      email: "malik@tyme.local",
+      headline: "Steady hand for mobility, delivery, and household tasks",
+      bio: "Versatile captain who can handle physical help and same-day runs.",
+      availabilityStatus: "ONLINE" as const,
+      availabilityWindow: "Available now until 10 PM",
+      isAvailableNow: true,
+      trustScore: 91,
+      responseRate: 0.92,
+      tasksCompleted: 41,
+      locationLabel: "Pilsen, Chicago",
+      latitude: 41.8576,
+      longitude: -87.6564,
+      radiusKm: 10,
+      balanceTokens: 143,
+      lastSyncedAt: "2026-04-11T14:40:00.000Z",
+      solanaAddress: "2XyZaBCdEfGhJKLmNoPqRsTuVwXyZaBCdEfGhJKLmN1",
+      skills: ["mobility", "delivery", "household", "errands"],
+    },
   ];
 
-  for (const entry of captainSkills) {
+  const captainsByEmail = new Map<string, Awaited<ReturnType<typeof createCaptain>>>();
+
+  for (const definition of captainDefinitions) {
+    const captain = await createCaptain(definition);
+    captainsByEmail.set(definition.email, captain);
+  }
+
+  const captainJordan = captainsByEmail.get("jordan@tyme.local")!;
+  const captainPriya = captainsByEmail.get("priya@tyme.local")!;
+  const captainAmina = captainsByEmail.get("amina@tyme.local")!;
+
+  for (const definition of captainDefinitions) {
+    const captain = captainsByEmail.get(definition.email);
+
     await prisma.captainSkill.createMany({
-      data: entry.slugs.map((slug) => ({
-        captainProfileId: entry.captainProfileId,
-        skillId: skillMap.get(slug)!.id
-      }))
+      data: definition.skills.map((slug) => ({
+        captainProfileId: captain!.captainProfile!.id,
+        skillId: skillMap.get(slug)!.id,
+      })),
     });
   }
 
@@ -405,7 +531,8 @@ async function main() {
         seededBy: admin.email,
         demoPassword: seededDemoPassword,
         skills: skills.length,
-        users: 5,
+        users: 11,
+        captains: 9,
         tasks: 3,
         pendingOffers: 1,
         activeAssignments: 1,
