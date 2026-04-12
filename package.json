@@ -10,7 +10,7 @@
     "dev": "next dev",
     "build": "npm run db:generate && next build",
     "start": "next start",
-    "postinstall": "prisma generate",
+    "postinstall": "node scripts/postinstall.mjs",
     "lint": "eslint .",
     "typecheck": "tsc --noEmit",
     "check": "npm run lint && npm run typecheck",
