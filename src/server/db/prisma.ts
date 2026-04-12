@@ -5,6 +5,10 @@ const globalForPrisma = globalThis as {
   prisma?: PrismaClient;
 };
 
+export function isDatabaseConfigured() {
+  return Boolean(process.env.DATABASE_URL);
+}
+
 function createPrismaClient() {
   const connectionString = process.env.DATABASE_URL;
 

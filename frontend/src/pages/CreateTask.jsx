@@ -1,348 +1,758 @@
-import { useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
-import { ChevronLeft, ChevronRight, Mic, MapPin, Coins, Zap, Sparkles } from "lucide-react";
-import AppShell from "../components/AppShell";
-import { TASK_CATEGORIES, SKILLS } from "../lib/mockData";
+// @ts-nocheck
 
-const URGENCY_OPTIONS = [
-  { value: "LOW", label: "Low", desc: "Flexible timing", color: "bg-secondary border-border text-ink-secondary" },
-  { value: "MEDIUM", label: "Medium", desc: "Within a day", color: "bg-amber-light border-amber/30 text-amber" },
-  { value: "HIGH", label: "High", desc: "Today or ASAP", color: "bg-coral-light border-coral/30 text-coral" },
+import { useEffect, useMemo, useRef, useState } from "react";
+import { Link, useNavigate, useParams, useSearchParams } from "react-router-dom";
+import { useMutation, useQuery } from "@tanstack/react-query";
+import {
+  ChevronLeft,
+  Coins,
+  LoaderCircle,
+  MapPin,
+  Mic,
+  RefreshCw,
+  Sparkles,
+  WandSparkles,
+  Zap,
+} from "lucide-react";
+
+import AppShell from "../components/AppShell";
+import { toast } from "@/components/ui/use-toast";
+import { assistTask, createTask, fetchTask, updateTask } from "@/lib/platform-api";
+
+const CATEGORY_OPTIONS = [
+  { value: "ERRANDS", label: "Errands", icon: "Shopping" },
+  { value: "MOBILITY", label: "Mobility", icon: "Ride" },
+  { value: "WELLNESS", label: "Wellness", icon: "Care" },
+  { value: "LEARNING", label: "Learning", icon: "Tutor" },
+  { value: "HOUSEHOLD", label: "Household", icon: "Home" },
+  { value: "DELIVERY", label: "Delivery", icon: "Drop" },
+  { value: "OTHER", label: "Other", icon: "Other" },
 ];
 
-const STEPS = ["Basics", "Details", "Review"];
+const URGENCY_OPTIONS = [
+  { value: "LOW", label: "Flexible" },
+  { value: "MEDIUM", label: "Today" },
+  { value: "HIGH", label: "ASAP" },
+];
 
-export default function CreateTask() {
-  const navigate = useNavigate();
-  const [step, setStep] = useState(0);
-  const [form, setForm] = useState({
+const TASK_TYPE_OPTIONS = [
+  {
+    value: "TOKEN_FUNDED",
+    label: "Reward a captain",
+    description: "Offer Tyme tokens so nearby captains jump in fast.",
+  },
+  {
+    value: "VOLUNTEER",
+    label: "Volunteer help",
+    description: "Open it up to captains without a token reward.",
+  },
+];
+
+function createEmptyForm() {
+  return {
     title: "",
     description: "",
     category: "",
-    task_type: "TOKEN_FUNDED",
+    taskType: "TOKEN_FUNDED",
     urgency: "MEDIUM",
-    token_budget: "",
-    location_address: "",
-    radius_km: 3,
-    required_skills: [],
+    tokenBudget: 20,
+    locationLabel: "",
+    latitude: null,
+    longitude: null,
+    radiusKm: 5,
+    requiredSkills: [],
     notes: "",
-  });
-  const [publishing, setPublishing] = useState(false);
+    voiceTranscript: "",
+  };
+}
 
-  const set = (key, val) => setForm(f => ({ ...f, [key]: val }));
-  const toggleSkill = (skill) => {
-    set("required_skills", form.required_skills.includes(skill)
-      ? form.required_skills.filter(s => s !== skill)
-      : [...form.required_skills, skill]);
+function extractFirstSentence(value) {
+  const trimmed = value.trim();
+  if (!trimmed) {
+    return "";
+  }
+
+  const sentence = trimmed.split(/[.!?]/)[0] ?? trimmed;
+  return sentence.length > 90 ? `${sentence.slice(0, 87)}...` : sentence;
+}
+
+export default function CreateTask() {
+  const navigate = useNavigate();
+  const { id } = useParams();
+  const [searchParams] = useSearchParams();
+  const isEditing = Boolean(id);
+  const shouldStartVoice = searchParams.get("voice") === "1";
+  const [form, setForm] = useState(createEmptyForm);
+  const [locationStatus, setLocationStatus] = useState("Detecting your location...");
+  const [isRecording, setIsRecording] = useState(false);
+  const [skillsTouched, setSkillsTouched] = useState(false);
+  const [manualSkill, setManualSkill] = useState("");
+  const recognitionRef = useRef(null);
+  const latestFormRef = useRef(form);
+  const assistSignatureRef = useRef("");
+  const hasHydratedEditRef = useRef(false);
+
+  useEffect(() => {
+    latestFormRef.current = form;
+  }, [form]);
+
+  const taskQuery = useQuery({
+    queryKey: ["task", id],
+    queryFn: () => fetchTask(id),
+    enabled: isEditing,
+    refetchOnWindowFocus: false,
+  });
+
+  useEffect(() => {
+    if (!taskQuery.data?.task || hasHydratedEditRef.current) {
+      return;
+    }
+
+    const task = taskQuery.data.task;
+    setForm({
+      title: task.title ?? "",
+      description: task.description ?? "",
+      category: task.category ?? "ERRANDS",
+      taskType: task.task_type ?? "TOKEN_FUNDED",
+      urgency: task.urgency ?? "MEDIUM",
+      tokenBudget: task.token_budget ?? 20,
+      locationLabel: task.location_address ?? "",
+      latitude: task.latitude ?? null,
+      longitude: task.longitude ?? null,
+      radiusKm: task.radius_km ?? 5,
+      requiredSkills: task.required_skill_slugs ?? [],
+      notes: task.notes ?? "",
+      voiceTranscript: task.voice_transcript ?? "",
+    });
+    hasHydratedEditRef.current = true;
+    setLocationStatus(task.location_address ? "Using saved task location." : "Location ready");
+  }, [taskQuery.data]);
+
+  const assistMutation = useMutation({
+    mutationFn: assistTask,
+    onSuccess: (payload) => {
+      setForm((current) => ({
+        ...current,
+        title: current.title || payload.draft.title,
+        description: current.description || payload.draft.description,
+        category: current.category || payload.draft.category,
+        taskType: current.taskType || payload.draft.taskType,
+        urgency: payload.draft.urgency ?? current.urgency,
+        tokenBudget:
+          current.taskType === "TOKEN_FUNDED" || payload.draft.taskType === "TOKEN_FUNDED"
+            ? current.tokenBudget || payload.draft.tokenBudget
+            : 0,
+        radiusKm: current.radiusKm || payload.draft.radiusKm,
+        locationLabel: current.locationLabel || payload.draft.locationLabel,
+        latitude: current.latitude ?? payload.draft.latitude,
+        longitude: current.longitude ?? payload.draft.longitude,
+        notes: current.notes || payload.draft.notes,
+        voiceTranscript: current.voiceTranscript || payload.draft.voiceTranscript || "",
+        requiredSkills:
+          skillsTouched && current.requiredSkills.length
+            ? current.requiredSkills
+            : (payload.draft.requiredSkills ?? payload.suggestedSkills ?? []).slice(0, 4),
+      }));
+    },
+  });
+
+  const saveTaskMutation = useMutation({
+    mutationFn: async ({ publish }) => {
+      const payload = {
+        ...form,
+        tokenBudget: form.taskType === "TOKEN_FUNDED" ? Number(form.tokenBudget) || 0 : 0,
+        publish,
+        status: publish ? "OPEN" : "DRAFT",
+      };
+
+      if (isEditing) {
+        return updateTask(id, payload);
+      }
+
+      return createTask(payload);
+    },
+    onSuccess: (payload, variables) => {
+      toast({
+        title: variables.publish ? "Task is live" : "Draft saved",
+        description: variables.publish
+          ? "Captains are now being ranked and pinged in real time."
+          : "You can come back and finish this later.",
+      });
+      navigate(`/tasks/${payload.task.id}`, { replace: true });
+    },
+    onError: (error) => {
+      toast({
+        title: "Could not save task",
+        description: error.message,
+        variant: "destructive",
+      });
+    },
+  });
+
+  useEffect(() => {
+    if (!navigator.geolocation || (isEditing && hasHydratedEditRef.current)) {
+      if (!navigator.geolocation) {
+        setLocationStatus("Location permission is unavailable in this browser.");
+      }
+      return;
+    }
+
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        setForm((current) => ({
+          ...current,
+          latitude: current.latitude ?? Number(position.coords.latitude.toFixed(6)),
+          longitude: current.longitude ?? Number(position.coords.longitude.toFixed(6)),
+          locationLabel:
+            current.locationLabel || "Near my current location",
+        }));
+        setLocationStatus("Location captured automatically.");
+      },
+      () => {
+        setLocationStatus("We could not read your location. You can still type it in manually.");
+      },
+      { enableHighAccuracy: true, timeout: 10000 },
+    );
+  }, [isEditing]);
+
+  useEffect(() => {
+    if (typeof window === "undefined") {
+      return;
+    }
+
+    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if (!SpeechRecognition) {
+      return;
+    }
+
+    const recognition = new SpeechRecognition();
+    recognition.lang = "en-US";
+    recognition.interimResults = false;
+    recognition.maxAlternatives = 1;
+
+    recognition.onresult = (event) => {
+      const transcript = Array.from(event.results)
+        .map((result) => result[0]?.transcript ?? "")
+        .join(" ")
+        .trim();
+
+      if (!transcript) {
+        return;
+      }
+
+      setForm((current) => ({
+        ...current,
+        title: current.title || extractFirstSentence(transcript),
+          description: current.description ? `${current.description}\n\n${transcript}` : transcript,
+          voiceTranscript: transcript,
+        }));
+        void assistMutation.mutateAsync({
+          ...latestFormRef.current,
+          transcript,
+        });
+    };
+
+    recognition.onstart = () => setIsRecording(true);
+    recognition.onend = () => setIsRecording(false);
+    recognition.onerror = () => {
+      setIsRecording(false);
+      toast({
+        title: "Voice capture stopped",
+        description: "Try again or continue with the manual form.",
+        variant: "destructive",
+      });
+    };
+
+    recognitionRef.current = recognition;
+
+    if (shouldStartVoice) {
+      recognition.start();
+    }
+
+    return () => {
+      recognition.stop?.();
+    };
+  }, [assistMutation, shouldStartVoice]);
+
+  useEffect(() => {
+    const signature = JSON.stringify({
+      title: form.title,
+      description: form.description,
+      category: form.category,
+      transcript: form.voiceTranscript,
+    });
+
+    if ((form.title + form.description + form.voiceTranscript).trim().length < 16) {
+      return;
+    }
+
+    const timeoutId = window.setTimeout(() => {
+      if (assistSignatureRef.current === signature || assistMutation.isPending) {
+        return;
+      }
+
+      assistSignatureRef.current = signature;
+      void assistMutation.mutateAsync({
+        title: form.title,
+        description: form.description,
+        transcript: form.voiceTranscript,
+        category: form.category,
+        taskType: form.taskType,
+        urgency: form.urgency,
+        tokenBudget: form.tokenBudget,
+        radiusKm: form.radiusKm,
+        locationLabel: form.locationLabel,
+        latitude: form.latitude,
+        longitude: form.longitude,
+        notes: form.notes,
+      });
+    }, 900);
+
+    return () => window.clearTimeout(timeoutId);
+  }, [
+    assistMutation,
+    form.category,
+    form.description,
+    form.locationLabel,
+    form.longitude,
+    form.notes,
+    form.radiusKm,
+    form.taskType,
+    form.title,
+    form.tokenBudget,
+    form.latitude,
+    form.urgency,
+    form.voiceTranscript,
+  ]);
+
+  const suggestedSkills = useMemo(
+    () => Array.from(new Set([...(assistMutation.data?.suggestedSkills ?? []), ...form.requiredSkills])).slice(0, 6),
+    [assistMutation.data?.suggestedSkills, form.requiredSkills],
+  );
+
+  const addManualSkill = () => {
+    const slug = manualSkill.trim().toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
+    if (!slug) {
+      return;
+    }
+
+    setSkillsTouched(true);
+    setForm((current) => ({
+      ...current,
+      requiredSkills: Array.from(new Set([...current.requiredSkills, slug])).slice(0, 6),
+    }));
+    setManualSkill("");
   };
 
-  const handlePublish = () => {
-    setPublishing(true);
-    setTimeout(() => {
-      navigate("/my-tasks");
-    }, 1500);
+  const toggleSkill = (skill) => {
+    setSkillsTouched(true);
+    setForm((current) => ({
+      ...current,
+      requiredSkills: current.requiredSkills.includes(skill)
+        ? current.requiredSkills.filter((entry) => entry !== skill)
+        : [...current.requiredSkills, skill].slice(0, 6),
+    }));
+  };
+
+  const handleVoiceCapture = () => {
+    if (!recognitionRef.current) {
+      toast({
+        title: "Voice is not supported here",
+        description: "This browser does not expose speech recognition.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (isRecording) {
+      recognitionRef.current.stop();
+      return;
+    }
+
+    recognitionRef.current.start();
+  };
+
+  const refreshLocation = () => {
+    if (!navigator.geolocation) {
+      return;
+    }
+
+    setLocationStatus("Refreshing your location...");
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        setForm((current) => ({
+          ...current,
+          latitude: Number(position.coords.latitude.toFixed(6)),
+          longitude: Number(position.coords.longitude.toFixed(6)),
+          locationLabel: current.locationLabel || "Near my current location",
+        }));
+        setLocationStatus("Location refreshed.");
+      },
+      () => setLocationStatus("We could not refresh your location."),
+      { enableHighAccuracy: true, timeout: 10000 },
+    );
+  };
+
+  const submitTask = (publish) => {
+    if (!form.title.trim() || !form.description.trim()) {
+      toast({
+        title: "A little more detail helps",
+        description: "Add a title and a short description before saving.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (!form.locationLabel.trim()) {
+      toast({
+        title: "Location is missing",
+        description: "Type a location or allow the browser to fetch it first.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    saveTaskMutation.mutate({ publish });
   };
 
   return (
     <AppShell role="user">
-      <div className="max-w-2xl mx-auto px-4 md:px-6 py-8">
-        {/* Header */}
-        <div className="flex items-center gap-3 mb-8">
+      <div className="max-w-3xl mx-auto px-4 md:px-6 py-8">
+        <div className="flex items-center gap-3 mb-6">
           <Link to="/my-tasks" className="p-1.5 rounded-lg hover:bg-secondary text-ink-tertiary transition-colors">
             <ChevronLeft size={18} />
           </Link>
           <div className="flex-1">
-            <h1 className="font-bold text-ink text-lg">New Task</h1>
-            <p className="text-xs text-ink-tertiary">Step {step + 1} of {STEPS.length} — {STEPS[step]}</p>
+            <h1 className="font-bold text-ink text-lg">{isEditing ? "Edit Task" : "Create Task"}</h1>
+            <p className="text-xs text-ink-tertiary">
+              Keep it simple. Tyme will auto-suggest skills, ranking, and captain matching once you publish.
+            </p>
           </div>
+          {(assistMutation.isPending || taskQuery.isLoading) && (
+            <div className="inline-flex items-center gap-2 rounded-full bg-secondary px-3 py-1 text-xs text-ink-tertiary">
+              <LoaderCircle size={12} className="animate-spin" />
+              Syncing
+            </div>
+          )}
         </div>
 
-        {/* Progress bar */}
-        <div className="flex gap-1.5 mb-8">
-          {STEPS.map((s, i) => (
-            <div key={s} className="flex-1 h-1 rounded-full overflow-hidden bg-border">
-              <div className={`h-full rounded-full bg-teal transition-all duration-500 ${i <= step ? "w-full" : "w-0"}`} />
-            </div>
-          ))}
-        </div>
-
-        {/* Step 0: Basics */}
-        {step === 0 && (
-          <div className="space-y-6 animate-fade-up">
-            <div>
-              <label className="block text-sm font-medium text-ink mb-2">What do you need help with?</label>
-              <textarea
-                value={form.title}
-                onChange={e => set("title", e.target.value)}
-                placeholder="e.g. Pick up groceries from Whole Foods on Market St..."
-                className="input-premium resize-none h-20"
-                rows={3}
-              />
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-ink mb-2">Describe in more detail</label>
-              <textarea
-                value={form.description}
-                onChange={e => set("description", e.target.value)}
-                placeholder="Any specifics a Captain should know — timing, items, special instructions..."
-                className="input-premium resize-none"
-                rows={4}
-              />
-            </div>
-
-            <div>
-              <div className="flex items-center justify-between mb-2">
-                <label className="text-sm font-medium text-ink">Or use voice</label>
+        <div className="space-y-5">
+          <section className="bg-white border border-border rounded-3xl p-5 md:p-6 space-y-5">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <div>
+                <div className="text-sm font-semibold text-ink">Two ways to create the task</div>
+                <p className="text-xs text-ink-tertiary mt-1">
+                  Type it out yourself or speak naturally and let Tyme Assist clean it up.
+                </p>
               </div>
-              <button className="w-full flex items-center gap-3 px-4 py-3.5 border border-dashed border-teal/50 bg-teal-light rounded-xl text-sm text-teal font-medium hover:bg-teal-mid transition-colors">
-                <Mic size={16} /> Tap to record voice request
+              <button
+                type="button"
+                onClick={handleVoiceCapture}
+                className={`inline-flex items-center gap-2 rounded-2xl px-4 py-2.5 text-sm font-medium transition-all ${
+                  isRecording
+                    ? "bg-coral text-white shadow-premium-md"
+                    : "bg-teal-light text-teal hover:bg-teal-mid"
+                }`}
+              >
+                <Mic size={15} />
+                {isRecording ? "Listening..." : "Use voice"}
               </button>
             </div>
 
-            <div>
-              <label className="block text-sm font-medium text-ink mb-3">Category</label>
-              <div className="grid grid-cols-4 gap-2">
-                {TASK_CATEGORIES.map(cat => (
-                  <button
-                    key={cat.value}
-                    onClick={() => set("category", cat.value)}
-                    className={`flex flex-col items-center gap-1.5 py-3 px-2 rounded-xl border text-center transition-all ${
-                      form.category === cat.value
-                        ? "border-teal bg-teal-light"
-                        : "border-border bg-white hover:border-teal/30"
-                    }`}
-                  >
-                    <span className="text-xl">{cat.icon}</span>
-                    <span className={`text-[10px] font-medium ${form.category === cat.value ? "text-teal" : "text-ink-tertiary"}`}>
-                      {cat.label}
-                    </span>
-                  </button>
-                ))}
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* Step 1: Details */}
-        {step === 1 && (
-          <div className="space-y-6 animate-fade-up">
-            <div>
-              <label className="block text-sm font-medium text-ink mb-3">Urgency</label>
-              <div className="grid grid-cols-3 gap-2">
-                {URGENCY_OPTIONS.map(opt => (
-                  <button
-                    key={opt.value}
-                    onClick={() => set("urgency", opt.value)}
-                    className={`p-3 rounded-xl border-2 text-center transition-all ${
-                      form.urgency === opt.value ? opt.color + " border-2" : "bg-white border-border"
-                    }`}
-                  >
-                    <div className="font-semibold text-sm">{opt.label}</div>
-                    <div className={`text-[11px] mt-0.5 ${form.urgency === opt.value ? "" : "text-ink-tertiary"}`}>{opt.desc}</div>
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-ink mb-3">Task type</label>
-              <div className="grid grid-cols-2 gap-2">
-                {[
-                  { value: "TOKEN_FUNDED", label: "Token Funded", desc: "Offer TB tokens as reward", icon: Coins },
-                  { value: "VOLUNTEER", label: "Volunteer", desc: "No tokens required", icon: Sparkles },
-                ].map(opt => (
-                  <button
-                    key={opt.value}
-                    onClick={() => set("task_type", opt.value)}
-                    className={`flex items-start gap-3 p-4 rounded-xl border-2 text-left transition-all ${
-                      form.task_type === opt.value ? "border-teal bg-teal-light" : "border-border bg-white"
-                    }`}
-                  >
-                    <opt.icon size={16} className={form.task_type === opt.value ? "text-teal mt-0.5" : "text-ink-tertiary mt-0.5"} />
-                    <div>
-                      <div className={`text-sm font-semibold ${form.task_type === opt.value ? "text-teal" : "text-ink"}`}>{opt.label}</div>
-                      <div className="text-xs text-ink-tertiary">{opt.desc}</div>
-                    </div>
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            {form.task_type === "TOKEN_FUNDED" && (
-              <div>
-                <label className="block text-sm font-medium text-ink mb-2">Token budget (TB)</label>
-                <div className="relative">
-                  <Coins size={15} className="absolute left-4 top-1/2 -translate-y-1/2 text-amber" />
-                  <input
-                    type="number"
-                    value={form.token_budget}
-                    onChange={e => set("token_budget", e.target.value)}
-                    placeholder="e.g. 25"
-                    className="input-premium pl-10"
-                  />
+            {form.voiceTranscript && (
+              <div className="rounded-2xl border border-teal/20 bg-teal-light px-4 py-3">
+                <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.18em] text-teal mb-2">
+                  <Sparkles size={12} />
+                  Voice transcript
                 </div>
-                <div className="flex gap-2 mt-2">
-                  {[10, 20, 35, 50, 75].map(amount => (
-                    <button key={amount} onClick={() => set("token_budget", amount)} className="px-2.5 py-1 text-xs bg-amber-light text-amber rounded-lg font-medium hover:bg-amber/20 transition-colors">
-                      {amount}
+                <p className="text-sm text-ink-secondary leading-relaxed">{form.voiceTranscript}</p>
+              </div>
+            )}
+
+            <div>
+              <label className="block text-sm font-medium text-ink mb-2">Short title</label>
+              <input
+                type="text"
+                value={form.title}
+                onChange={(event) => setForm((current) => ({ ...current, title: event.target.value }))}
+                placeholder="Pick up medicine before 6 PM"
+                className="input-premium"
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-ink mb-2">Describe what needs to happen</label>
+              <textarea
+                value={form.description}
+                onChange={(event) => setForm((current) => ({ ...current, description: event.target.value }))}
+                placeholder="Tell captains what to do, any deadlines, and anything sensitive they should know."
+                className="input-premium min-h-[140px] resize-none"
+              />
+            </div>
+
+            <button
+              type="button"
+              onClick={() =>
+                assistMutation.mutate({
+                  title: form.title,
+                  description: form.description,
+                  transcript: form.voiceTranscript,
+                  category: form.category,
+                  taskType: form.taskType,
+                  urgency: form.urgency,
+                  tokenBudget: form.tokenBudget,
+                  radiusKm: form.radiusKm,
+                  locationLabel: form.locationLabel,
+                  latitude: form.latitude,
+                  longitude: form.longitude,
+                  notes: form.notes,
+                })
+              }
+              className="inline-flex items-center gap-2 rounded-2xl border border-border bg-canvas px-4 py-2 text-sm font-medium text-ink hover:border-teal/30"
+            >
+              <WandSparkles size={15} className="text-teal" />
+              Re-run Tyme Assist
+            </button>
+          </section>
+
+          <section className="grid gap-5 md:grid-cols-[1.25fr_0.75fr]">
+            <div className="bg-white border border-border rounded-3xl p-5 md:p-6 space-y-5">
+              <div>
+                <label className="block text-sm font-medium text-ink mb-3">Category</label>
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
+                  {CATEGORY_OPTIONS.map((category) => (
+                    <button
+                      key={category.value}
+                      type="button"
+                      onClick={() => setForm((current) => ({ ...current, category: category.value }))}
+                      className={`rounded-2xl border px-3 py-3 text-sm font-medium transition-all ${
+                        form.category === category.value
+                          ? "border-teal bg-teal-light text-teal"
+                          : "border-border bg-white text-ink-secondary hover:border-teal/30"
+                      }`}
+                    >
+                      {category.label}
                     </button>
                   ))}
                 </div>
               </div>
-            )}
 
-            <div>
-              <label className="block text-sm font-medium text-ink mb-2">Location</label>
-              <div className="relative">
-                <MapPin size={15} className="absolute left-4 top-1/2 -translate-y-1/2 text-ink-tertiary" />
+              <div>
+                <label className="block text-sm font-medium text-ink mb-3">Urgency</label>
+                <div className="grid grid-cols-3 gap-2">
+                  {URGENCY_OPTIONS.map((option) => (
+                    <button
+                      key={option.value}
+                      type="button"
+                      onClick={() => setForm((current) => ({ ...current, urgency: option.value }))}
+                      className={`rounded-2xl border px-3 py-3 text-sm font-medium transition-all ${
+                        form.urgency === option.value
+                          ? "border-ink bg-ink text-white"
+                          : "border-border bg-white text-ink-secondary hover:border-teal/30"
+                      }`}
+                    >
+                      {option.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-ink mb-3">How should captains respond?</label>
+                <div className="grid gap-2">
+                  {TASK_TYPE_OPTIONS.map((option) => (
+                    <button
+                      key={option.value}
+                      type="button"
+                      onClick={() =>
+                        setForm((current) => ({
+                          ...current,
+                          taskType: option.value,
+                          tokenBudget: option.value === "TOKEN_FUNDED" ? current.tokenBudget || 20 : 0,
+                        }))
+                      }
+                      className={`rounded-2xl border p-4 text-left transition-all ${
+                        form.taskType === option.value
+                          ? "border-teal bg-teal-light"
+                          : "border-border bg-white hover:border-teal/30"
+                      }`}
+                    >
+                      <div className="text-sm font-semibold text-ink">{option.label}</div>
+                      <p className="text-xs text-ink-tertiary mt-1">{option.description}</p>
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {form.taskType === "TOKEN_FUNDED" && (
+                <div>
+                  <label className="block text-sm font-medium text-ink mb-2">Token budget</label>
+                  <div className="relative">
+                    <Coins size={15} className="absolute left-4 top-1/2 -translate-y-1/2 text-amber" />
+                    <input
+                      type="number"
+                      value={form.tokenBudget}
+                      onChange={(event) =>
+                        setForm((current) => ({ ...current, tokenBudget: Number(event.target.value) || 0 }))
+                      }
+                      className="input-premium pl-10"
+                      min={0}
+                    />
+                  </div>
+                  <div className="flex flex-wrap gap-2 mt-3">
+                    {[10, 20, 35, 50].map((amount) => (
+                      <button
+                        key={amount}
+                        type="button"
+                        onClick={() => setForm((current) => ({ ...current, tokenBudget: amount }))}
+                        className="rounded-full bg-amber-light px-3 py-1 text-xs font-medium text-amber"
+                      >
+                        {amount} TB
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+
+            <div className="bg-white border border-border rounded-3xl p-5 md:p-6 space-y-5">
+              <div>
+                <div className="flex items-center justify-between gap-3 mb-2">
+                  <label className="text-sm font-medium text-ink">Location</label>
+                  <button
+                    type="button"
+                    onClick={refreshLocation}
+                    className="inline-flex items-center gap-1 text-xs font-medium text-teal"
+                  >
+                    <RefreshCw size={12} />
+                    Refresh
+                  </button>
+                </div>
+                <div className="relative">
+                  <MapPin size={15} className="absolute left-4 top-1/2 -translate-y-1/2 text-ink-tertiary" />
+                  <input
+                    type="text"
+                    value={form.locationLabel}
+                    onChange={(event) => setForm((current) => ({ ...current, locationLabel: event.target.value }))}
+                    className="input-premium pl-10"
+                    placeholder="Near my current location"
+                  />
+                </div>
+                <p className="text-xs text-ink-tertiary mt-2">{locationStatus}</p>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-ink mb-2">
+                  Captain search radius <span className="text-teal">{form.radiusKm} km</span>
+                </label>
                 <input
-                  type="text"
-                  value={form.location_address}
-                  onChange={e => set("location_address", e.target.value)}
-                  placeholder="Address or area..."
-                  className="input-premium pl-10"
+                  type="range"
+                  min={1}
+                  max={20}
+                  value={form.radiusKm}
+                  onChange={(event) =>
+                    setForm((current) => ({ ...current, radiusKm: Number(event.target.value) }))
+                  }
+                  className="w-full accent-teal"
+                />
+              </div>
+
+              <div>
+                <div className="flex items-center gap-2 mb-2">
+                  <label className="text-sm font-medium text-ink">Suggested skills</label>
+                  {assistMutation.isPending && <LoaderCircle size={12} className="animate-spin text-teal" />}
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  {suggestedSkills.map((skill) => (
+                    <button
+                      key={skill}
+                      type="button"
+                      onClick={() => toggleSkill(skill)}
+                      className={`rounded-full px-3 py-1.5 text-xs font-medium transition-all ${
+                        form.requiredSkills.includes(skill)
+                          ? "bg-ink text-white"
+                          : "bg-secondary text-ink-secondary hover:bg-teal-light hover:text-teal"
+                      }`}
+                    >
+                      {skill}
+                    </button>
+                  ))}
+                </div>
+
+                <div className="mt-3 flex gap-2">
+                  <input
+                    type="text"
+                    value={manualSkill}
+                    onChange={(event) => setManualSkill(event.target.value)}
+                    placeholder="Add a custom skill"
+                    className="input-premium"
+                  />
+                  <button
+                    type="button"
+                    onClick={addManualSkill}
+                    className="rounded-2xl bg-secondary px-4 text-sm font-medium text-ink"
+                  >
+                    Add
+                  </button>
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-ink mb-2">Optional notes</label>
+                <textarea
+                  value={form.notes}
+                  onChange={(event) => setForm((current) => ({ ...current, notes: event.target.value }))}
+                  className="input-premium min-h-[110px] resize-none"
+                  placeholder="Door code, contact preferences, or any extra context."
                 />
               </div>
             </div>
+          </section>
 
-            <div>
-              <label className="block text-sm font-medium text-ink mb-2">
-                Search radius — <span className="text-teal">{form.radius_km} km</span>
-              </label>
-              <input
-                type="range"
-                min={1}
-                max={15}
-                value={form.radius_km}
-                onChange={e => set("radius_km", Number(e.target.value))}
-                className="w-full accent-teal"
-              />
-              <div className="flex justify-between text-xs text-ink-tertiary mt-1">
-                <span>1 km</span><span>15 km</span>
+          <section className="rounded-3xl border border-teal/20 bg-teal-light px-5 py-4">
+            <div className="flex items-start gap-3">
+              <div className="mt-1 rounded-2xl bg-white p-2 text-teal shadow-premium">
+                <Zap size={16} />
+              </div>
+              <div>
+                <div className="text-sm font-semibold text-ink">What happens after you publish</div>
+                <p className="text-sm text-ink-secondary mt-1 leading-relaxed">
+                  Tyme immediately ranks nearby captains, pings their live feed, and updates your task
+                  screen as soon as one accepts. You will see the waiting state, assignment, progress,
+                  and feedback loop in the same task window.
+                </p>
               </div>
             </div>
+          </section>
 
-            <div>
-              <label className="block text-sm font-medium text-ink mb-3">Skills needed (optional)</label>
-              <div className="flex flex-wrap gap-2">
-                {SKILLS.slice(0, 12).map(skill => (
-                  <button
-                    key={skill}
-                    onClick={() => toggleSkill(skill)}
-                    className={`px-3 py-1.5 rounded-full text-xs font-medium transition-all border ${
-                      form.required_skills.includes(skill)
-                        ? "bg-ink text-white border-ink"
-                        : "bg-white border-border text-ink-secondary hover:border-teal/30"
-                    }`}
-                  >
-                    {skill}
-                  </button>
-                ))}
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* Step 2: Review */}
-        {step === 2 && (
-          <div className="space-y-4 animate-fade-up">
-            <div className="bg-white border border-border rounded-2xl p-5">
-              <h3 className="text-xs font-semibold text-ink-tertiary uppercase tracking-wide mb-4">Task Summary</h3>
-              <div className="space-y-3">
-                <div>
-                  <div className="text-xs text-ink-tertiary mb-1">Title</div>
-                  <div className="font-semibold text-ink">{form.title || "—"}</div>
-                </div>
-                <div className="h-px bg-border" />
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <div className="text-xs text-ink-tertiary mb-1">Category</div>
-                    <div className="text-sm font-medium text-ink">{form.category || "—"}</div>
-                  </div>
-                  <div>
-                    <div className="text-xs text-ink-tertiary mb-1">Urgency</div>
-                    <div className="text-sm font-medium text-ink">{form.urgency}</div>
-                  </div>
-                  <div>
-                    <div className="text-xs text-ink-tertiary mb-1">Type</div>
-                    <div className="text-sm font-medium text-ink">{form.task_type === "TOKEN_FUNDED" ? "Token funded" : "Volunteer"}</div>
-                  </div>
-                  {form.token_budget && (
-                    <div>
-                      <div className="text-xs text-ink-tertiary mb-1">Budget</div>
-                      <div className="text-sm font-medium text-amber">{form.token_budget} TB</div>
-                    </div>
-                  )}
-                </div>
-                <div className="h-px bg-border" />
-                <div>
-                  <div className="text-xs text-ink-tertiary mb-1">Description</div>
-                  <div className="text-sm text-ink-secondary leading-relaxed">{form.description || "—"}</div>
-                </div>
-                {form.required_skills.length > 0 && (
-                  <>
-                    <div className="h-px bg-border" />
-                    <div>
-                      <div className="text-xs text-ink-tertiary mb-2">Required Skills</div>
-                      <div className="flex flex-wrap gap-1.5">
-                        {form.required_skills.map(s => (
-                          <span key={s} className="px-2.5 py-1 bg-secondary text-ink-secondary text-xs rounded-full">{s}</span>
-                        ))}
-                      </div>
-                    </div>
-                  </>
-                )}
-              </div>
-            </div>
-
-            {form.token_budget && (
-              <div className="flex items-center gap-3 p-4 bg-amber-light border border-amber/20 rounded-xl">
-                <Coins size={18} className="text-amber flex-shrink-0" />
-                <div className="text-sm">
-                  <span className="font-semibold text-ink">{form.token_budget} TB</span>
-                  <span className="text-ink-secondary"> will be held in escrow until the Captain completes your task.</span>
-                </div>
-              </div>
-            )}
-          </div>
-        )}
-
-        {/* Navigation */}
-        <div className="flex gap-3 mt-8 pt-6 border-t border-border">
-          <button
-            onClick={() => { set("status", "DRAFT"); navigate("/my-tasks"); }}
-            className="px-4 py-2.5 border border-border text-ink-secondary text-sm rounded-xl hover:bg-secondary transition-colors"
-          >
-            Save draft
-          </button>
-          <div className="flex-1" />
-          {step > 0 && (
-            <button onClick={() => setStep(s => s - 1)} className="px-4 py-2.5 border border-border text-ink text-sm font-medium rounded-xl hover:bg-secondary transition-colors">
-              Back
-            </button>
-          )}
-          {step < STEPS.length - 1 ? (
+          <div className="flex flex-wrap gap-3 pt-2">
             <button
-              onClick={() => setStep(s => s + 1)}
-              disabled={step === 0 && !form.title}
-              className="flex items-center gap-2 px-6 py-2.5 bg-ink text-white text-sm font-medium rounded-xl hover:bg-ink/90 transition-all disabled:opacity-40"
+              type="button"
+              onClick={() => submitTask(false)}
+              disabled={saveTaskMutation.isPending}
+              className="rounded-2xl border border-border px-5 py-3 text-sm font-medium text-ink-secondary hover:bg-secondary disabled:opacity-50"
             >
-              Continue <ChevronRight size={15} />
+              Save draft
             </button>
-          ) : (
             <button
-              onClick={handlePublish}
-              disabled={publishing}
-              className="flex items-center gap-2 px-6 py-2.5 bg-teal text-white text-sm font-medium rounded-xl hover:bg-teal/90 transition-all disabled:opacity-50"
+              type="button"
+              onClick={() => submitTask(true)}
+              disabled={saveTaskMutation.isPending}
+              className="inline-flex items-center gap-2 rounded-2xl bg-ink px-6 py-3 text-sm font-medium text-white hover:bg-ink/90 disabled:opacity-50"
             >
-              {publishing ? (
-                <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+              {saveTaskMutation.isPending ? (
+                <>
+                  <LoaderCircle size={15} className="animate-spin" />
+                  Saving...
+                </>
               ) : (
-                <><Zap size={15} /> Publish task</>
+                <>
+                  <Zap size={15} />
+                  {isEditing ? "Update and dispatch" : "Publish and dispatch"}
+                </>
               )}
             </button>
-          )}
+          </div>
         </div>
       </div>
     </AppShell>

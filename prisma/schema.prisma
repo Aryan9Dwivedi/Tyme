@@ -235,7 +235,7 @@ model Assignment {
   task               Task             @relation(fields: [taskId], references: [id], onDelete: Cascade)
   captain            User             @relation("CaptainAssignments", fields: [captainId], references: [id], onDelete: Cascade)
   offer              TaskOffer?       @relation(fields: [offerId], references: [id], onDelete: SetNull)
-  rating             Rating?
+  ratings            Rating[]
   payoutTransactions Transaction[]
   createdAt          DateTime         @default(now())
   updatedAt          DateTime         @updatedAt
@@ -280,7 +280,7 @@ model Transaction {
 
 model Rating {
   id           String     @id @default(uuid())
-  assignmentId String     @unique
+  assignmentId String
   authorId     String
   targetId     String
   score        Int
@@ -293,4 +293,5 @@ model Rating {
 
   @@index([authorId])
   @@index([targetId])
+  @@unique([assignmentId, authorId, targetId])
 }

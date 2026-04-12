@@ -1,11 +1,14 @@
 import { Link } from "react-router-dom";
-import { Plus, Mic, CheckSquare, User, Wallet, ArrowRight, Coins, Clock } from "lucide-react";
+import { useQuery } from "@tanstack/react-query";
+import { Plus, Mic, CheckSquare, User, Wallet, ArrowRight, Coins, Clock, LoaderCircle } from "lucide-react";
+
 import AppShell from "../components/AppShell";
 import StatCard from "../components/StatCard";
 import TaskCard from "../components/TaskCard";
+import { EmptyState } from "../components/ui/EmptyState";
 import { useAuth } from "@/lib/AuthContext";
-import { getDisplayUser, getWalletViewModel } from "@/lib/auth-view-models";
-import { mockTasks, mockCaptainProfile } from "../lib/mockData";
+import { getDisplayUser } from "@/lib/auth-view-models";
+import { fetchUserDashboard } from "@/lib/platform-api";
 
 const QUICK_ACTIONS = [
   { label: "New Task", icon: Plus, href: "/tasks/new", accent: true },
@@ -18,23 +21,38 @@ const QUICK_ACTIONS = [
 export default function UserDashboard() {
   const { user } = useAuth();
   const currentUser = getDisplayUser(user);
-  const currentWallet = getWalletViewModel(user);
-  const activeTasks = mockTasks.filter(t => ["IN_PROGRESS", "ASSIGNED", "OFFERED", "MATCHING"].includes(t.status));
-  const drafts = mockTasks.filter(t => t.status === "DRAFT");
-  const completed = mockTasks.filter(t => t.status === "COMPLETED").slice(0, 2);
+  const dashboardQuery = useQuery({
+    queryKey: ["user-dashboard"],
+    queryFn: fetchUserDashboard,
+    refetchInterval: 5000,
+  });
+
+  const activeTasks = dashboardQuery.data?.activeTasks ?? [];
+  const drafts = dashboardQuery.data?.drafts ?? [];
+  const completedTasks = dashboardQuery.data?.completedTasks ?? [];
+  const nearbyCaptains = dashboardQuery.data?.nearbyCaptains ?? [];
+  const stats = dashboardQuery.data?.stats ?? {
+    active: 0,
+    completed: 0,
+    drafts: 0,
+    walletBalance: 0,
+    pendingBalance: 0,
+  };
 
   return (
     <AppShell role="user">
       <div className="max-w-5xl mx-auto px-4 md:px-6 py-8 space-y-8">
-
-        {/* Welcome */}
         <div className="flex items-start justify-between gap-4">
           <div>
+            <div className="inline-flex items-center gap-2 rounded-full bg-secondary px-3 py-1 text-xs text-ink-tertiary mb-3">
+              {dashboardQuery.isFetching && <LoaderCircle size={12} className="animate-spin text-teal" />}
+              Live matching feed
+            </div>
             <h1 className="text-2xl font-bold text-ink mb-1">
-              Good morning, {currentUser.full_name.split(" ")[0]}. 👋
+              Welcome back, {currentUser.full_name.split(" ")[0]}.
             </h1>
             <p className="text-sm text-ink-tertiary">
-              You have <span className="font-medium text-ink">{activeTasks.length} active tasks</span> and <span className="font-medium text-ink">{drafts.length} drafts</span> waiting.
+              Publish a task and Tyme will start ranking captains for you in real time.
             </p>
           </div>
           <Link
@@ -45,7 +63,6 @@ export default function UserDashboard() {
           </Link>
         </div>
 
-        {/* Quick actions */}
         <div className="grid grid-cols-5 gap-3">
           {QUICK_ACTIONS.map((action) => (
             <Link
@@ -65,116 +82,93 @@ export default function UserDashboard() {
           ))}
         </div>
 
-        {/* Stats row */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-          <StatCard label="Active Tasks" value={activeTasks.length} icon={CheckSquare} sub="right now" />
-          <StatCard label="Completed" value={mockTasks.filter(t => t.status === "COMPLETED").length} icon={CheckSquare} sub="all time" trend="+2 this week" trendDir="up" />
-          <StatCard label="Wallet" value={`${currentWallet.balance} TB`} icon={Coins} sub="available balance" accent />
-          <StatCard label="Pending" value={`${currentWallet.pending_balance} TB`} icon={Clock} sub="in escrow" />
+          <StatCard label="Active Tasks" value={stats.active} icon={CheckSquare} sub="currently dispatching or assigned" />
+          <StatCard label="Completed" value={stats.completed} icon={CheckSquare} sub="closed successfully" trendDir="up" />
+          <StatCard label="Wallet" value={`${stats.walletBalance} TB`} icon={Coins} sub="available balance" accent />
+          <StatCard label="Pending" value={`${stats.pendingBalance} TB`} icon={Clock} sub="awaiting release" />
         </div>
 
-        {/* Active tasks */}
-        {activeTasks.length > 0 && (
-          <section>
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="font-semibold text-ink">Active Tasks</h2>
-              <Link to="/my-tasks" className="text-xs text-teal font-medium hover:underline flex items-center gap-1">
-                View all <ArrowRight size={11} />
-              </Link>
+        <section>
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="font-semibold text-ink">Active Task Flow</h2>
+            <Link to="/my-tasks" className="text-xs text-teal font-medium hover:underline flex items-center gap-1">
+              View all <ArrowRight size={11} />
+            </Link>
+          </div>
+          {dashboardQuery.isLoading ? (
+            <div className="rounded-3xl border border-border bg-white px-6 py-10 text-sm text-ink-tertiary">
+              Loading your live tasks...
             </div>
+          ) : activeTasks.length ? (
             <div className="grid md:grid-cols-2 gap-4">
-              {activeTasks.map(task => (
+              {activeTasks.map((task) => (
                 <TaskCard key={task.id} task={task} href={`/tasks/${task.id}`} />
               ))}
             </div>
-          </section>
-        )}
+          ) : (
+            <EmptyState
+              icon="⚡"
+              title="No live tasks yet"
+              description="Create a task and watch Tyme start ranking nearby captains for you."
+              actionLabel="Create task"
+              action={() => {
+                window.location.href = "/tasks/new";
+              }}
+            />
+          )}
+        </section>
 
-        {/* Bottom grid */}
         <div className="grid md:grid-cols-2 gap-6">
-          {/* Nearby captains */}
           <section>
             <div className="flex items-center justify-between mb-4">
-              <h2 className="font-semibold text-ink">Trusted nearby Captains</h2>
+              <h2 className="font-semibold text-ink">Nearby top captains</h2>
             </div>
             <div className="bg-white border border-border rounded-xl overflow-hidden">
-              {[mockCaptainProfile, { ...mockCaptainProfile, id: "cp2", headline: "Mobility specialist, senior care", availability: "ONLINE", trust_score: 89, completed_tasks: 63, average_rating: 4.8, avatar_url: "https://images.unsplash.com/photo-1438761681033-6461ffad8d80?w=40&h=40&fit=crop&crop=face" }].map((cap, i) => (
-                <div key={cap.id} className={`flex items-center gap-3 px-4 py-3.5 ${i > 0 ? "border-t border-border" : ""}`}>
+              {nearbyCaptains.length ? nearbyCaptains.map((captain, index) => (
+                <div key={captain.id} className={`flex items-center gap-3 px-4 py-3.5 ${index > 0 ? "border-t border-border" : ""}`}>
                   <div className="relative flex-shrink-0">
-                    <img src={cap.avatar_url} alt="" className="w-9 h-9 rounded-full object-cover" />
-                    <span className={`absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 rounded-full border-2 border-white ${cap.availability === "ONLINE" ? "bg-emerald" : "bg-gray-400"}`} />
+                    <img src={captain.avatar_url} alt="" className="w-9 h-9 rounded-full object-cover" />
+                    <span className={`absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 rounded-full border-2 border-white ${captain.availability === "ONLINE" ? "bg-emerald" : captain.availability === "BUSY" ? "bg-amber" : "bg-gray-400"}`} />
                   </div>
                   <div className="flex-1 min-w-0">
-                    <div className="text-sm font-medium text-ink truncate">{cap.headline}</div>
-                    <div className="text-xs text-ink-tertiary">{cap.completed_tasks} tasks · {cap.average_rating}★ · {cap.trust_score} trust</div>
+                    <div className="text-sm font-medium text-ink truncate">{captain.headline}</div>
+                    <div className="text-xs text-ink-tertiary">
+                      {captain.completed_tasks} completed · {captain.average_rating}★ · {captain.trust_score} trust
+                    </div>
                   </div>
-                  <Link to="/tasks/new" className="text-xs text-teal font-medium hover:underline flex-shrink-0">
-                    Request
-                  </Link>
                 </div>
-              ))}
+              )) : (
+                <div className="px-4 py-5 text-sm text-ink-tertiary">Captain profiles will appear here as soon as the feed loads.</div>
+              )}
             </div>
           </section>
 
-          {/* Drafts */}
-          {drafts.length > 0 && (
-            <section>
-              <div className="flex items-center justify-between mb-4">
-                <h2 className="font-semibold text-ink">Drafts</h2>
-                <Link to="/my-tasks?filter=DRAFT" className="text-xs text-teal font-medium hover:underline flex items-center gap-1">
-                  View all <ArrowRight size={11} />
-                </Link>
-              </div>
+          <section>
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="font-semibold text-ink">Drafts waiting for you</h2>
+            </div>
+            {drafts.length ? (
               <div className="space-y-3">
-                {drafts.map(task => (
+                {drafts.map((task) => (
                   <TaskCard key={task.id} task={task} href={`/tasks/${task.id}/edit`} compact />
                 ))}
               </div>
-            </section>
-          )}
-
-          {/* Wallet summary */}
-          <section>
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="font-semibold text-ink">Wallet summary</h2>
-              <Link to="/wallet" className="text-xs text-teal font-medium hover:underline flex items-center gap-1">
-                Open wallet <ArrowRight size={11} />
-              </Link>
-            </div>
-            <div className="bg-white border border-border rounded-xl p-5">
-              <div className="flex items-end justify-between mb-5">
-                <div>
-                  <div className="text-xs text-ink-tertiary mb-1">Available balance</div>
-                  <div className="text-3xl font-bold text-ink">{currentWallet.balance} <span className="text-lg text-ink-tertiary font-normal">TB</span></div>
-                </div>
-                <div className="text-right">
-                  <div className="text-xs text-ink-tertiary mb-1">In escrow</div>
-                  <div className="text-sm font-semibold text-amber">{currentWallet.pending_balance} TB</div>
-                </div>
+            ) : (
+              <div className="rounded-2xl border border-border bg-white px-5 py-6 text-sm text-ink-tertiary">
+                No drafts right now. The simplified form keeps most people moving straight to publish.
               </div>
-              <div className="flex gap-2">
-                <Link to="/wallet" className="flex-1 text-center py-2 bg-teal-light text-teal text-xs font-medium rounded-lg hover:bg-teal-mid transition-colors">
-                  Fund wallet
-                </Link>
-                <Link to="/wallet" className="flex-1 text-center py-2 bg-secondary text-ink-secondary text-xs font-medium rounded-lg hover:bg-border transition-colors">
-                  View history
-                </Link>
-              </div>
-            </div>
+            )}
           </section>
         </div>
 
-        {/* Recent completed */}
-        {completed.length > 0 && (
+        {completedTasks.length > 0 && (
           <section>
             <div className="flex items-center justify-between mb-4">
               <h2 className="font-semibold text-ink">Recently completed</h2>
-              <Link to="/my-tasks?filter=COMPLETED" className="text-xs text-teal font-medium hover:underline flex items-center gap-1">
-                View all <ArrowRight size={11} />
-              </Link>
             </div>
             <div className="grid md:grid-cols-2 gap-4">
-              {completed.map(task => (
+              {completedTasks.map((task) => (
                 <TaskCard key={task.id} task={task} href={`/tasks/${task.id}`} compact />
               ))}
             </div>

@@ -3,7 +3,9 @@ export type TaskCategory =
   | "mobility"
   | "wellness"
   | "learning"
-  | "household";
+  | "household"
+  | "delivery"
+  | "other";
 
 export type TaskType = "volunteer" | "token-funded";
 
