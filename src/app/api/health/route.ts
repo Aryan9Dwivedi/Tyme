@@ -1,7 +1,12 @@
 import { APP_NAME } from "@/lib/constants/project";
+import { jsonWithCors, preflightResponse } from "@/server/http/cors";
+
+export function OPTIONS() {
+  return preflightResponse();
+}
 
 export async function GET() {
-  return Response.json({
+  return jsonWithCors({
     status: "ok",
     app: APP_NAME,
     generatedAt: new Date().toISOString(),

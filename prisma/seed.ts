@@ -2,6 +2,7 @@ import "dotenv/config";
 
 import { PrismaNeon } from "@prisma/adapter-neon";
 import { PrismaClient } from "@prisma/client";
+import bcrypt from "bcryptjs";
 
 const connectionString = process.env.DATABASE_URL;
 
@@ -12,6 +13,8 @@ if (!connectionString) {
 const prisma = new PrismaClient({
   adapter: new PrismaNeon({ connectionString }),
 });
+
+const seededDemoPassword = "TimeBridge123!";
 
 async function main() {
   await prisma.rating.deleteMany();
@@ -44,10 +47,13 @@ async function main() {
     skillMap.set(skill.slug, { id: createdSkill.id });
   }
 
+  const hashedPassword = await bcrypt.hash(seededDemoPassword, 12);
+
   const admin = await prisma.user.create({
     data: {
       name: "Ava Admin",
       email: "admin@timebridge.local",
+      passwordHash: hashedPassword,
       role: "ADMIN",
       status: "ACTIVE"
     }
@@ -57,6 +63,7 @@ async function main() {
     data: {
       name: "Maria Alvarez",
       email: "maria@timebridge.local",
+      passwordHash: hashedPassword,
       phone: "+1-312-555-0101",
       role: "USER",
       status: "ACTIVE",
@@ -78,6 +85,7 @@ async function main() {
     data: {
       name: "Jordan Lee",
       email: "jordan@timebridge.local",
+      passwordHash: hashedPassword,
       role: "CAPTAIN",
       status: "ACTIVE",
       captainProfile: {
@@ -115,6 +123,7 @@ async function main() {
     data: {
       name: "Priya Shah",
       email: "priya@timebridge.local",
+      passwordHash: hashedPassword,
       role: "CAPTAIN",
       status: "ACTIVE",
       captainProfile: {
@@ -152,6 +161,7 @@ async function main() {
     data: {
       name: "Amina Yusuf",
       email: "amina@timebridge.local",
+      passwordHash: hashedPassword,
       role: "CAPTAIN",
       status: "ACTIVE",
       captainProfile: {
@@ -393,6 +403,7 @@ async function main() {
     JSON.stringify(
       {
         seededBy: admin.email,
+        demoPassword: seededDemoPassword,
         skills: skills.length,
         users: 5,
         tasks: 3,

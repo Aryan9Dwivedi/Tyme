@@ -1,6 +1,6 @@
 import "dotenv/config";
 
-import { readFile } from "node:fs/promises";
+import { readFile, readdir } from "node:fs/promises";
 import path from "node:path";
 
 import { neon } from "@neondatabase/serverless";
@@ -40,32 +40,67 @@ function parseStatements(rawSql: string) {
 }
 
 async function main() {
-  const [{ userTable }] = await sql`SELECT to_regclass('"User"') AS "userTable"`;
+  await sql.query(`
+    CREATE TABLE IF NOT EXISTS "_CustomMigrations" (
+      "name" TEXT PRIMARY KEY,
+      "appliedAt" TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    )
+  `);
 
-  if (userTable) {
-    console.log("Schema already exists in Neon. Skipping migration apply.");
-    return;
+  const [{ userTable }] = await sql`SELECT to_regclass('"User"') AS "userTable"`;
+  const migrationsRoot = path.join(process.cwd(), "prisma", "migrations");
+  const migrationDirectories = (await readdir(migrationsRoot, { withFileTypes: true }))
+    .filter((entry) => entry.isDirectory())
+    .map((entry) => entry.name)
+    .sort();
+
+  const appliedMigrations = new Set(
+    (
+      await sql`SELECT "name" FROM "_CustomMigrations" ORDER BY "name"`
+    ).map((entry) => entry.name),
+  );
+
+  if (userTable && !appliedMigrations.has("20260411200000_init_neon_postgres")) {
+    await sql`
+      INSERT INTO "_CustomMigrations" ("name")
+      VALUES (${"20260411200000_init_neon_postgres"})
+      ON CONFLICT ("name") DO NOTHING
+    `;
+    appliedMigrations.add("20260411200000_init_neon_postgres");
   }
 
-  const migrationPath = path.join(
-    process.cwd(),
-    "prisma",
-    "migrations",
-    "20260411200000_init_neon_postgres",
-    "migration.sql",
-  );
-  const rawSql = await readFile(migrationPath, "utf8");
-  const statements = parseStatements(rawSql);
+  let appliedCount = 0;
 
-  for (const statement of statements) {
-    await sql.query(statement);
+  for (const migrationName of migrationDirectories) {
+    if (appliedMigrations.has(migrationName)) {
+      continue;
+    }
+
+    const migrationPath = path.join(
+      migrationsRoot,
+      migrationName,
+      "migration.sql",
+    );
+    const rawSql = await readFile(migrationPath, "utf8");
+    const statements = parseStatements(rawSql);
+
+    for (const statement of statements) {
+      await sql.query(statement);
+    }
+
+    await sql`
+      INSERT INTO "_CustomMigrations" ("name")
+      VALUES (${migrationName})
+      ON CONFLICT ("name") DO NOTHING
+    `;
+    appliedCount += 1;
   }
 
   console.log(
     JSON.stringify(
       {
-        appliedStatements: statements.length,
-        migration: path.basename(path.dirname(migrationPath)),
+        appliedMigrations: appliedCount,
+        knownMigrations: migrationDirectories.length,
       },
       null,
       2,

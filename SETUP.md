@@ -28,8 +28,8 @@ If Windows PowerShell blocks `npm`, run `npm.cmd install` instead.
 
 Notes:
 
-- The current scaffold runs without real ElevenLabs, Solana, or database wiring.
-- Those keys are included so the backend and integration work can plug in cleanly later.
+- Neon/Postgres and auth routes now require `DATABASE_URL` and `AUTH_SECRET`.
+- `CORS_ALLOW_ORIGIN` can stay as `*` for hackathon testing or be set to your frontend Vercel URL.
 
 ## Run The App
 
@@ -38,6 +38,24 @@ npm run dev
 ```
 
 Open `http://localhost:3000`
+
+## Vercel Deployment
+
+Deploy this backend repo as its own Vercel project.
+
+Required environment variables:
+
+```bash
+DATABASE_URL=...
+AUTH_SECRET=...
+CORS_ALLOW_ORIGIN=https://your-frontend-project.vercel.app
+```
+
+Notes:
+
+- The API routes are CORS-enabled for cross-origin frontend calls.
+- Run `npm run db:apply` locally before deploying schema changes.
+- If your frontend is a separate Vercel project, set its `VITE_API_BASE_URL` to this backend URL.
 
 ## Quality Checks
 
