@@ -207,6 +207,8 @@ export default function CreateTask() {
     transcription: "",
     transcriptionModel: "",
   });
+  const hasDeviceLocation = typeof form.latitude === "number" && typeof form.longitude === "number";
+  const usingDeviceLocation = locationMode === "device";
   const latestFormRef = useRef(form);
   const assistSignatureRef = useRef("");
   const hasHydratedEditRef = useRef(false);
@@ -676,9 +678,7 @@ export default function CreateTask() {
       ).slice(0, 6),
     [assistMutation.data?.suggestedSkills, form.requiredSkills, voiceAssistMutation.data?.suggestedSkills],
   );
-  const hasDeviceLocation = typeof form.latitude === "number" && typeof form.longitude === "number";
   const selectedCategory = CATEGORY_OPTIONS.find((category) => category.value === form.category)?.label ?? "";
-  const usingDeviceLocation = locationMode === "device";
 
   const addManualSkill = () => {
     const slug = manualSkill.trim().toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");

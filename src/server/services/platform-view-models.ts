@@ -176,6 +176,7 @@ export function assignmentViewFromRecord(assignment: any) {
       assignment.task.requiredSkills?.map((link: any) => link.skill.label ?? titleCase(link.skill.slug)) ??
       [],
     created_date: assignment.task.createdAt ?? assignment.task.requestedAt,
+    scheduled_for: assignment.task.scheduledFor,
     accepted_at: assignment.acceptedAt,
     started_at: assignment.startedAt,
     completed_at: assignment.completedAt,
@@ -187,6 +188,7 @@ export function assignmentViewFromRecord(assignment: any) {
           id: assignment.task.creator.id,
           name: assignment.task.creator.name,
           email: assignment.task.creator.email,
+          phone: assignment.task.creator.phone ?? null,
           avatar_url: avatarUrl(assignment.task.creator.name, assignment.task.creator.id),
         }
       : null,

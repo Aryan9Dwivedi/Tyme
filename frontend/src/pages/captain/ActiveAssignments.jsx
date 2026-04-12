@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { MapPin, CheckCircle, Phone, LoaderCircle, Star } from "lucide-react";
+import { MapPin, CheckCircle, Phone, LoaderCircle, Mail, Route, Star } from "lucide-react";
 
 import AppShell from "../../components/AppShell";
 import { StatusBadge, CategoryBadge } from "../../components/ui/StatusBadge";
@@ -15,6 +15,24 @@ import {
 } from "@/lib/platform-api";
 import { useAuth } from "@/lib/AuthContext";
 import { toast } from "@/components/ui/use-toast";
+
+function formatEta(assignment) {
+  if (assignment.scheduled_for) {
+    return `Scheduled ${new Date(assignment.scheduled_for).toLocaleString([], {
+      month: "short",
+      day: "numeric",
+      hour: "numeric",
+      minute: "2-digit",
+    })}`;
+  }
+
+  if (assignment.assignment_status === "ACTIVE") {
+    return "In progress now";
+  }
+
+  const minutes = Math.max(8, Math.round((assignment.radius_km ?? 3) * 5));
+  return `~${minutes} min`;
+}
 
 export default function ActiveAssignments() {
   const { user } = useAuth();
@@ -148,22 +166,58 @@ export default function ActiveAssignments() {
 
                       <p className="text-sm text-ink-secondary leading-relaxed mb-4">{assignment.description}</p>
 
-                      <div className="flex items-center gap-4 text-xs text-ink-tertiary mb-5">
-                        <span className="flex items-center gap-1">
-                          <MapPin size={11} /> {assignment.location_address}
-                        </span>
+                      <div className="mb-5 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+                        <div className="rounded-2xl bg-canvas px-4 py-3">
+                          <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-ink-tertiary">Location</div>
+                          <div className="mt-2 flex items-start gap-2 text-sm font-medium text-ink">
+                            <MapPin size={14} className="mt-0.5 flex-shrink-0 text-teal" />
+                            <span>{assignment.location_address}</span>
+                          </div>
+                        </div>
+                        <div className="rounded-2xl bg-canvas px-4 py-3">
+                          <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-ink-tertiary">ETA</div>
+                          <div className="mt-2 flex items-center gap-2 text-sm font-medium text-ink">
+                            <Route size={14} className="flex-shrink-0 text-teal" />
+                            <span>{formatEta(assignment)}</span>
+                          </div>
+                        </div>
+                        <div className="rounded-2xl bg-canvas px-4 py-3">
+                          <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-ink-tertiary">Contact</div>
+                          <div className="mt-2 text-sm font-medium text-ink">
+                            {assignment.requester?.phone || assignment.requester?.email || "In-app follow-up"}
+                          </div>
+                        </div>
+                        <div className="rounded-2xl bg-canvas px-4 py-3">
+                          <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-ink-tertiary">Task state</div>
+                          <div className="mt-2 text-sm font-medium text-ink">
+                            {assignment.assignment_status === "ACTIVE" ? "Working live" : "Ready to start"}
+                          </div>
+                        </div>
                       </div>
 
                       {assignment.requester && (
-                        <div className="flex items-center gap-3 p-3 bg-secondary rounded-xl mb-5">
+                        <div className="flex flex-col gap-3 rounded-2xl bg-secondary p-4 mb-5 md:flex-row md:items-center">
                           <img src={assignment.requester.avatar_url} className="w-8 h-8 rounded-full object-cover" alt="" />
                           <div className="flex-1">
                             <div className="text-sm font-medium text-ink">{assignment.requester.name}</div>
                             <div className="text-xs text-ink-tertiary">Requester</div>
                           </div>
-                          <a href={`mailto:${assignment.requester.email}`} className="flex items-center gap-1 text-xs text-teal font-medium hover:underline">
-                            <Phone size={12} /> Contact
-                          </a>
+                          <div className="flex flex-wrap gap-2">
+                            {assignment.requester.phone && (
+                              <a
+                                href={`tel:${assignment.requester.phone}`}
+                                className="inline-flex items-center gap-1 rounded-full bg-white px-3 py-1.5 text-xs font-medium text-teal hover:underline"
+                              >
+                                <Phone size={12} /> {assignment.requester.phone}
+                              </a>
+                            )}
+                            <a
+                              href={`mailto:${assignment.requester.email}`}
+                              className="inline-flex items-center gap-1 rounded-full bg-white px-3 py-1.5 text-xs font-medium text-teal hover:underline"
+                            >
+                              <Mail size={12} /> Email
+                            </a>
+                          </div>
                         </div>
                       )}
 

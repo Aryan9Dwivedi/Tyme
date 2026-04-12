@@ -1,6 +1,7 @@
 // @ts-nocheck
 
 import { useEffect, useRef, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Search, MapPin, LoaderCircle } from "lucide-react";
 
@@ -12,6 +13,7 @@ import { acceptCaptainOpportunity, declineCaptainOpportunity, fetchCaptainOpport
 import { toast } from "@/components/ui/use-toast";
 
 export default function NearbyOpportunities() {
+  const navigate = useNavigate();
   const queryClient = useQueryClient();
   const [search, setSearch] = useState("");
   const [catFilter, setCatFilter] = useState("ALL");
@@ -46,6 +48,10 @@ export default function NearbyOpportunities() {
       await queryClient.invalidateQueries({ queryKey: ["captain-opportunities"] });
       await queryClient.invalidateQueries({ queryKey: ["captain-dashboard"] });
       await queryClient.invalidateQueries({ queryKey: ["captain-assignments"] });
+
+      if (variables.type === "accept") {
+        navigate("/captain/assignments");
+      }
     },
     onError: (error) => {
       toast({

@@ -1,7 +1,7 @@
 // @ts-nocheck
 
 import { useEffect, useRef, useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { ArrowRight, BellRing, CheckCircle, Coins, Star, ToggleLeft, ToggleRight, Zap, LoaderCircle } from "lucide-react";
 
@@ -28,6 +28,7 @@ const AVAILABILITY_CYCLE = {
 
 export default function CaptainDashboard() {
   const { refreshUser } = useAuth();
+  const navigate = useNavigate();
   const queryClient = useQueryClient();
   const [incomingOpportunity, setIncomingOpportunity] = useState(null);
   const seenOpportunityIdsRef = useRef(new Set());
@@ -71,6 +72,10 @@ export default function CaptainDashboard() {
       await queryClient.invalidateQueries({ queryKey: ["captain-dashboard"] });
       await queryClient.invalidateQueries({ queryKey: ["captain-opportunities"] });
       await queryClient.invalidateQueries({ queryKey: ["captain-assignments"] });
+
+      if (variables.type === "accept") {
+        navigate("/captain/assignments");
+      }
     },
     onError: (error) => {
       toast({
