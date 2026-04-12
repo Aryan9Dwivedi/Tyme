@@ -88,10 +88,11 @@ export default function CaptainDemandMap({ points }) {
       center={CHICAGO_CENTER}
       zoom={11}
       scrollWheelZoom={false}
+      zoomControl={false}
+      attributionControl={false}
       className="h-full w-full"
     >
       <TileLayer
-        attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
         url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
       />
       <DemandHeatLayer points={points} />
