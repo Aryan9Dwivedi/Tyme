@@ -49,6 +49,10 @@ const TASK_TYPE_OPTIONS = [
 ];
 
 const MAX_VOICE_RECORDING_MS = 45000;
+const MIN_SPEECH_CAPTURE_MS = 1400;
+const SILENCE_STOP_DELAY_MS = 1200;
+const EMPTY_SPEECH_STOP_DELAY_MS = 2600;
+const VOICE_ACTIVITY_THRESHOLD = 0.018;
 const SUPPORTED_VOICE_MIME_TYPES = [
   "audio/webm;codecs=opus",
   "audio/webm",
@@ -108,25 +112,6 @@ function getVoiceFileExtension(mimeType) {
   return "webm";
 }
 
-function appendTranscript(existingValue, transcript) {
-  const current = existingValue.trim();
-  const next = transcript.trim();
-
-  if (!next) {
-    return current;
-  }
-
-  if (!current) {
-    return next;
-  }
-
-  if (current.includes(next)) {
-    return current;
-  }
-
-  return `${current}\n${next}`;
-}
-
 function createAssistPayload(formState) {
   return {
     title: formState.title,
@@ -146,6 +131,28 @@ function createAssistPayload(formState) {
 
 function createAssistSignature(formState) {
   return JSON.stringify(createAssistPayload(formState));
+}
+
+function mergeVoiceAssistIntoForm(current, payload, skillsTouched) {
+  return {
+    ...current,
+    title: payload.draft.title || current.title || extractFirstSentence(payload.transcript ?? ""),
+    description: payload.draft.description || current.description,
+    category: payload.draft.category || current.category,
+    taskType: payload.draft.taskType || current.taskType,
+    urgency: payload.draft.urgency ?? current.urgency,
+    tokenBudget: payload.draft.taskType === "TOKEN_FUNDED" ? payload.draft.tokenBudget : 0,
+    radiusKm: payload.draft.radiusKm ?? current.radiusKm,
+    locationLabel: current.locationLabel || payload.draft.locationLabel,
+    latitude: current.latitude ?? payload.draft.latitude,
+    longitude: current.longitude ?? payload.draft.longitude,
+    notes: current.notes || payload.draft.notes,
+    voiceTranscript: (payload.transcript ?? payload.combinedTranscript ?? "").trim(),
+    requiredSkills:
+      skillsTouched && current.requiredSkills.length
+        ? current.requiredSkills
+        : (payload.draft.requiredSkills ?? payload.suggestedSkills ?? []).slice(0, 4),
+  };
 }
 
 function mergeAssistIntoForm(current, payload, skillsTouched) {
@@ -202,6 +209,13 @@ export default function CreateTask() {
   const mediaStreamRef = useRef(null);
   const audioChunksRef = useRef([]);
   const voiceTimeoutRef = useRef(null);
+  const audioContextRef = useRef(null);
+  const analyserRef = useRef(null);
+  const sourceNodeRef = useRef(null);
+  const voiceMonitorFrameRef = useRef(null);
+  const silenceStopTimeoutRef = useRef(null);
+  const recordingStartedAtRef = useRef(0);
+  const speechDetectedRef = useRef(false);
   const autoStartedVoiceRef = useRef(false);
 
   useEffect(() => {
@@ -272,27 +286,18 @@ export default function CreateTask() {
           : "Voice note synced. ElevenLabs captured it and Tyme used the local drafting fallback to fill the form.",
       );
       setForm((current) => {
-        const merged = mergeAssistIntoForm(current, payload, skillsTouched);
-        const nextTranscript = appendTranscript(current.voiceTranscript, payload.transcript ?? "");
-        const nextDescription = current.description
-          ? appendTranscript(current.description, payload.transcript ?? "")
-          : merged.description || payload.transcript || "";
-
-        return {
-          ...merged,
-          title: current.title || merged.title || extractFirstSentence(payload.transcript ?? ""),
-          description: nextDescription,
-          voiceTranscript: nextTranscript,
-        };
+        return mergeVoiceAssistIntoForm(current, payload, skillsTouched);
       });
       assistSignatureRef.current = createAssistSignature({
         ...latestFormRef.current,
-        title: latestFormRef.current.title || payload.draft.title,
-        description: latestFormRef.current.description
-          ? appendTranscript(latestFormRef.current.description, payload.transcript ?? "")
-          : payload.draft.description,
-        category: latestFormRef.current.category || payload.draft.category,
-        voiceTranscript: payload.combinedTranscript ?? appendTranscript(latestFormRef.current.voiceTranscript, payload.transcript ?? ""),
+        title: payload.draft.title,
+        description: payload.draft.description,
+        category: payload.draft.category,
+        taskType: payload.draft.taskType,
+        urgency: payload.draft.urgency,
+        tokenBudget: payload.draft.tokenBudget,
+        radiusKm: payload.draft.radiusKm,
+        voiceTranscript: payload.transcript ?? payload.combinedTranscript ?? "",
       });
     },
     onError: (error) => {
@@ -371,6 +376,37 @@ export default function CreateTask() {
     }
   }
 
+  function clearSilenceStopTimer() {
+    if (silenceStopTimeoutRef.current) {
+      window.clearTimeout(silenceStopTimeoutRef.current);
+      silenceStopTimeoutRef.current = null;
+    }
+  }
+
+  function teardownVoiceMonitor() {
+    if (voiceMonitorFrameRef.current) {
+      window.cancelAnimationFrame(voiceMonitorFrameRef.current);
+      voiceMonitorFrameRef.current = null;
+    }
+
+    clearSilenceStopTimer();
+
+    if (sourceNodeRef.current) {
+      sourceNodeRef.current.disconnect();
+      sourceNodeRef.current = null;
+    }
+
+    if (analyserRef.current) {
+      analyserRef.current.disconnect?.();
+      analyserRef.current = null;
+    }
+
+    if (audioContextRef.current) {
+      void audioContextRef.current.close().catch(() => undefined);
+      audioContextRef.current = null;
+    }
+  }
+
   function stopActiveStream() {
     if (!mediaStreamRef.current) {
       return;
@@ -381,6 +417,82 @@ export default function CreateTask() {
     }
 
     mediaStreamRef.current = null;
+  }
+
+  function stopRecorderSmoothly(statusMessage = "Finishing your note...") {
+    if (!mediaRecorderRef.current || mediaRecorderRef.current.state === "inactive") {
+      return;
+    }
+
+    setVoiceStatus(statusMessage);
+    clearSilenceStopTimer();
+    mediaRecorderRef.current.stop();
+  }
+
+  function beginSilenceAwareMonitoring(stream) {
+    const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+
+    if (!AudioContextClass) {
+      return;
+    }
+
+    const audioContext = new AudioContextClass();
+    const sourceNode = audioContext.createMediaStreamSource(stream);
+    const analyser = audioContext.createAnalyser();
+    const sampleData = new Uint8Array(analyser.fftSize);
+
+    analyser.fftSize = 2048;
+    analyser.smoothingTimeConstant = 0.88;
+    sourceNode.connect(analyser);
+
+    audioContextRef.current = audioContext;
+    sourceNodeRef.current = sourceNode;
+    analyserRef.current = analyser;
+
+    const monitor = () => {
+      if (!analyserRef.current || !mediaRecorderRef.current || mediaRecorderRef.current.state !== "recording") {
+        return;
+      }
+
+      analyserRef.current.getByteTimeDomainData(sampleData);
+      let total = 0;
+
+      for (const sample of sampleData) {
+        const normalized = (sample - 128) / 128;
+        total += normalized * normalized;
+      }
+
+      const rms = Math.sqrt(total / sampleData.length);
+      const elapsedMs = Date.now() - recordingStartedAtRef.current;
+
+      if (rms >= VOICE_ACTIVITY_THRESHOLD) {
+        speechDetectedRef.current = true;
+        clearSilenceStopTimer();
+
+        if (elapsedMs > 450) {
+          setVoiceStatus("Listening... pause naturally and Tyme will finish the note for you.");
+        }
+      } else if (!silenceStopTimeoutRef.current) {
+        const shouldStopForSilence =
+          (speechDetectedRef.current && elapsedMs >= MIN_SPEECH_CAPTURE_MS) ||
+          (!speechDetectedRef.current && elapsedMs >= EMPTY_SPEECH_STOP_DELAY_MS);
+
+        if (shouldStopForSilence) {
+          setVoiceStatus(
+            speechDetectedRef.current
+              ? "We heard a natural pause. Finishing your note..."
+              : "We did not catch much speech. Finishing this note...",
+          );
+          silenceStopTimeoutRef.current = window.setTimeout(() => {
+            stopRecorderSmoothly("Finishing your note...");
+          }, SILENCE_STOP_DELAY_MS);
+        }
+      }
+
+      voiceMonitorFrameRef.current = window.requestAnimationFrame(monitor);
+    };
+
+    voiceMonitorFrameRef.current = window.requestAnimationFrame(monitor);
   }
 
   async function beginVoiceCapture() {
@@ -415,11 +527,14 @@ export default function CreateTask() {
 
       recorder.onstart = () => {
         setIsRecording(true);
-        setVoiceStatus("Recording now. Tap the button again when you are ready to send it.");
+        recordingStartedAtRef.current = Date.now();
+        speechDetectedRef.current = false;
+        setVoiceStatus("Listening... pause naturally and Tyme will finish the note for you.");
         clearVoiceTimer();
+        clearSilenceStopTimer();
         voiceTimeoutRef.current = window.setTimeout(() => {
           if (recorder.state !== "inactive") {
-            recorder.stop();
+            stopRecorderSmoothly("Wrapping up your note...");
           }
         }, MAX_VOICE_RECORDING_MS);
       };
@@ -427,6 +542,7 @@ export default function CreateTask() {
       recorder.onerror = () => {
         setIsRecording(false);
         clearVoiceTimer();
+        teardownVoiceMonitor();
         stopActiveStream();
         mediaRecorderRef.current = null;
         toast({
@@ -443,6 +559,7 @@ export default function CreateTask() {
         audioChunksRef.current = [];
         setIsRecording(false);
         clearVoiceTimer();
+        teardownVoiceMonitor();
         stopActiveStream();
         mediaRecorderRef.current = null;
 
@@ -463,10 +580,12 @@ export default function CreateTask() {
         });
       };
 
+      beginSilenceAwareMonitoring(stream);
       recorder.start();
     } catch (error) {
       setIsRecording(false);
       clearVoiceTimer();
+      teardownVoiceMonitor();
       stopActiveStream();
       mediaRecorderRef.current = null;
       setVoiceStatus("Microphone permission is required for ElevenLabs voice assist.");
@@ -491,6 +610,7 @@ export default function CreateTask() {
   useEffect(() => {
     return () => {
       clearVoiceTimer();
+      teardownVoiceMonitor();
 
       if (mediaRecorderRef.current && mediaRecorderRef.current.state !== "inactive") {
         mediaRecorderRef.current.ondataavailable = null;
@@ -585,7 +705,7 @@ export default function CreateTask() {
     }
 
     if (isRecording) {
-      mediaRecorderRef.current?.stop();
+      stopRecorderSmoothly("Finishing your note...");
       return;
     }
 

@@ -24,7 +24,8 @@ export default function ActiveAssignments() {
   const assignmentsQuery = useQuery({
     queryKey: ["captain-assignments"],
     queryFn: fetchCaptainAssignments,
-    refetchInterval: 4000,
+    refetchInterval: 2000,
+    refetchIntervalInBackground: true,
   });
 
   const actionMutation = useMutation({
@@ -40,11 +41,12 @@ export default function ActiveAssignments() {
         description:
           variables.type === "start"
             ? "The requester now sees that you are actively working."
-            : "The user can now leave feedback and you can rate the collaboration too.",
+            : "Feedback unlocks the final reward release for funded tasks.",
       });
       await queryClient.invalidateQueries({ queryKey: ["captain-assignments"] });
       await queryClient.invalidateQueries({ queryKey: ["captain-dashboard"] });
       await queryClient.invalidateQueries({ queryKey: ["captain-opportunities"] });
+      await queryClient.invalidateQueries({ queryKey: ["task"] });
     },
     onError: (error) => {
       toast({
@@ -57,16 +59,19 @@ export default function ActiveAssignments() {
 
   const feedbackMutation = useMutation({
     mutationFn: ({ taskId, score, note }) => submitTaskFeedback(taskId, { score, note }),
-    onSuccess: async (_, variables) => {
+    onSuccess: async (payload, variables) => {
       toast({
-        title: "Feedback saved",
-        description: "This helps Tyme learn which requesters create smooth handoffs.",
+        title: payload?.payoutReleased ? "Feedback saved and payout released" : "Feedback saved",
+        description: payload?.payoutReleased
+          ? "Tyme released the funded reward to your wallet."
+          : "This helps Tyme learn which requesters create smooth handoffs.",
       });
       setFeedbackDrafts((current) => ({
         ...current,
         [variables.taskId]: { score: 5, note: "" },
       }));
       await queryClient.invalidateQueries({ queryKey: ["captain-assignments"] });
+      await queryClient.invalidateQueries({ queryKey: ["captain-dashboard"] });
     },
     onError: (error) => {
       toast({
@@ -212,7 +217,12 @@ export default function ActiveAssignments() {
 
                       {!feedbackSubmitted ? (
                         <div className="mt-4 rounded-2xl bg-canvas px-4 py-4">
-                          <div className="text-sm font-semibold text-ink mb-2">Rate the requester collaboration</div>
+                      <div className="text-sm font-semibold text-ink mb-2">Rate the requester collaboration</div>
+                          {assignment.token_budget > 0 && assignment.payout_status !== "CONFIRMED" && (
+                            <div className="mb-3 rounded-2xl bg-white px-3 py-3 text-xs text-ink-secondary">
+                              Reward release is waiting for both sides to finish feedback.
+                            </div>
+                          )}
                           <div className="flex gap-2 mb-3">
                             {[1, 2, 3, 4, 5].map((score) => (
                               <button
@@ -262,7 +272,9 @@ export default function ActiveAssignments() {
                         </div>
                       ) : (
                         <div className="mt-4 rounded-2xl bg-emerald-light px-4 py-3 text-sm text-emerald">
-                          Feedback submitted. Tyme will reuse it in future matching quality signals.
+                          {assignment.payout_status === "CONFIRMED"
+                            ? "Feedback submitted. Reward released and stored in your wallet."
+                            : "Feedback submitted. Tyme will reuse it in future matching quality signals."}
                         </div>
                       )}
                     </div>

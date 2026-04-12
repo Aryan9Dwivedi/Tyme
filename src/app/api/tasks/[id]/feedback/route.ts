@@ -1,7 +1,7 @@
 import { getCurrentAuthUser } from "@/server/auth/current-user";
 import { prisma } from "@/server/db/prisma";
 import { jsonWithCors, preflightResponse } from "@/server/http/cors";
-import { refreshCaptainTrustScore } from "@/server/services/task-flow";
+import { refreshCaptainTrustScore, settleAssignmentPayoutIfReady } from "@/server/services/task-flow";
 
 function badRequest(message: string, status = 400) {
   return jsonWithCors({ error: message }, { status });
@@ -107,5 +107,11 @@ export async function POST(
     await refreshCaptainTrustScore(targetUserId);
   }
 
-  return jsonWithCors({ success: true });
+  const payout = await settleAssignmentPayoutIfReady(task.assignment.id);
+
+  return jsonWithCors({
+    success: true,
+    payoutReleased: payout.payoutReleased,
+    payoutStatus: payout.payoutStatus,
+  });
 }

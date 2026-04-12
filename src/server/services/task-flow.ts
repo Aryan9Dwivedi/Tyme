@@ -176,6 +176,49 @@ export async function createEscrowLockIfNeeded(taskId: string, creatorId: string
   });
 }
 
+async function ensurePendingPayoutTransaction(
+  assignmentId: string,
+  walletId: string,
+  taskId: string,
+  amountTokens: number,
+) {
+  const existing = await prisma.transaction.findFirst({
+    where: {
+      assignmentId,
+      walletId,
+      type: "REWARD_PAYOUT",
+    },
+    select: {
+      id: true,
+      status: true,
+    },
+  });
+
+  if (existing) {
+    return existing;
+  }
+
+  return prisma.transaction.create({
+    data: {
+      walletId,
+      assignmentId,
+      direction: "CREDIT",
+      type: "REWARD_PAYOUT",
+      status: "PENDING",
+      amountTokens,
+      reason: "Reward queued until both sides close the loop with feedback",
+      metadata: {
+        taskId,
+        settlement: "awaiting-feedback",
+      },
+    },
+    select: {
+      id: true,
+      status: true,
+    },
+  });
+}
+
 export async function acceptOffer(offerId: string, captainId: string) {
   const offer = await prisma.taskOffer.findUnique({
     where: { id: offerId },
@@ -390,25 +433,28 @@ export async function completeAssignment(assignmentId: string, captainId: string
   ];
 
   if (assignment.task.tokenBudget > 0 && assignment.captain.wallet) {
+    await ensurePendingPayoutTransaction(
+      assignmentId,
+      assignment.captain.wallet.id,
+      assignment.task.id,
+      assignment.task.tokenBudget,
+    );
+
     operations.push(
-      prisma.wallet.update({
-        where: { id: assignment.captain.wallet.id },
-        data: {
-          balanceTokens: assignment.captain.wallet.balanceTokens + assignment.task.tokenBudget,
-          lastSyncedAt: new Date(),
-        },
-      }),
-      prisma.transaction.create({
-        data: {
-          walletId: assignment.captain.wallet.id,
+      prisma.transaction.updateMany({
+        where: {
           assignmentId,
-          direction: "CREDIT",
+          walletId: assignment.captain.wallet.id,
           type: "REWARD_PAYOUT",
-          status: "CONFIRMED",
-          amountTokens: assignment.task.tokenBudget,
-          reason: "Task completed payout",
-          metadata: { taskId: assignment.task.id },
-          confirmedAt: new Date(),
+        },
+        data: {
+          status: "PENDING",
+          reason: "Reward queued until both sides close the loop with feedback",
+          confirmedAt: null,
+          metadata: {
+            taskId: assignment.task.id,
+            settlement: "awaiting-feedback",
+          },
         },
       }),
     );
@@ -417,6 +463,118 @@ export async function completeAssignment(assignmentId: string, captainId: string
   await prisma.$transaction(operations);
 
   return true;
+}
+
+export async function settleAssignmentPayoutIfReady(assignmentId: string) {
+  const assignment = await prisma.assignment.findUnique({
+    where: { id: assignmentId },
+    include: {
+      task: {
+        select: {
+          id: true,
+          tokenBudget: true,
+          creatorId: true,
+          status: true,
+        },
+      },
+      captain: {
+        select: {
+          id: true,
+          wallet: {
+            select: {
+              id: true,
+              balanceTokens: true,
+            },
+          },
+        },
+      },
+      ratings: {
+        select: {
+          authorId: true,
+        },
+      },
+      payoutTransactions: {
+        where: {
+          type: "REWARD_PAYOUT",
+        },
+        select: {
+          id: true,
+          status: true,
+          walletId: true,
+          amountTokens: true,
+        },
+      },
+    },
+  });
+
+  if (!assignment || assignment.status !== "COMPLETED") {
+    return { payoutReleased: false, payoutStatus: "NONE" as const };
+  }
+
+  if (assignment.task.tokenBudget <= 0 || !assignment.captain.wallet) {
+    return { payoutReleased: false, payoutStatus: "NONE" as const };
+  }
+
+  const feedbackAuthors = new Set(assignment.ratings.map((rating) => rating.authorId));
+  const bothSidesSubmitted =
+    feedbackAuthors.has(assignment.task.creatorId) && feedbackAuthors.has(assignment.captainId);
+
+  const payoutTransaction = assignment.payoutTransactions[0] ?? null;
+
+  if (!payoutTransaction) {
+    await ensurePendingPayoutTransaction(
+      assignmentId,
+      assignment.captain.wallet.id,
+      assignment.task.id,
+      assignment.task.tokenBudget,
+    );
+
+    return {
+      payoutReleased: false,
+      payoutStatus: bothSidesSubmitted ? ("PENDING" as const) : ("PENDING" as const),
+    };
+  }
+
+  if (!bothSidesSubmitted) {
+    return {
+      payoutReleased: false,
+      payoutStatus: payoutTransaction.status,
+    };
+  }
+
+  if (payoutTransaction.status === "CONFIRMED") {
+    return {
+      payoutReleased: false,
+      payoutStatus: "CONFIRMED" as const,
+    };
+  }
+
+  await prisma.$transaction([
+    prisma.wallet.update({
+      where: { id: assignment.captain.wallet.id },
+      data: {
+        balanceTokens: assignment.captain.wallet.balanceTokens + payoutTransaction.amountTokens,
+        lastSyncedAt: new Date(),
+      },
+    }),
+    prisma.transaction.update({
+      where: { id: payoutTransaction.id },
+      data: {
+        status: "CONFIRMED",
+        reason: "Task completed payout released after both sides submitted feedback",
+        metadata: {
+          taskId: assignment.task.id,
+          settlement: "released-after-feedback",
+        },
+        confirmedAt: new Date(),
+      },
+    }),
+  ]);
+
+  return {
+    payoutReleased: true,
+    payoutStatus: "CONFIRMED" as const,
+  };
 }
 
 export async function nearbyCaptainCards(limit = 4) {

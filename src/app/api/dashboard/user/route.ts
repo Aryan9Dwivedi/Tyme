@@ -80,6 +80,15 @@ const taskInclude = {
           },
         },
       },
+      payoutTransactions: {
+        where: {
+          type: "REWARD_PAYOUT" as const,
+        },
+        orderBy: {
+          createdAt: "desc" as const,
+        },
+        take: 1,
+      },
     },
   },
 };

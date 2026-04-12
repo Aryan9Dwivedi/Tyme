@@ -38,7 +38,7 @@ function minutesSince(value: Date) {
 }
 
 function roundCoordinate(value: number) {
-  return Number(value.toFixed(3));
+  return Number(value.toFixed(2));
 }
 
 function formatEnumLabel(value: string) {

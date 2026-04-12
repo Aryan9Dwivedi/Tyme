@@ -15,12 +15,32 @@ function syncMapViewport(map, points) {
   }
 
   if (points.length === 1) {
-    map.setView([points[0].latitude, points[0].longitude], 13, { animate: false });
+    map.setView([points[0].latitude, points[0].longitude], 11, { animate: false });
     return;
   }
 
   const bounds = L.latLngBounds(points.map((point) => [point.latitude, point.longitude]));
-  map.fitBounds(bounds.pad(0.18), { animate: false });
+  const southWest = bounds.getSouthWest();
+  const northEast = bounds.getNorthEast();
+  const latSpan = Math.abs(northEast.lat - southWest.lat);
+  const lngSpan = Math.abs(northEast.lng - southWest.lng);
+  const minLatSpan = 0.08;
+  const minLngSpan = 0.1;
+
+  if (latSpan < minLatSpan || lngSpan < minLngSpan) {
+    const center = bounds.getCenter();
+    const expandedBounds = L.latLngBounds(
+      [center.lat - Math.max(latSpan / 2, minLatSpan / 2), center.lng - Math.max(lngSpan / 2, minLngSpan / 2)],
+      [center.lat + Math.max(latSpan / 2, minLatSpan / 2), center.lng + Math.max(lngSpan / 2, minLngSpan / 2)],
+    );
+    map.fitBounds(expandedBounds.pad(0.28), { animate: false });
+  } else {
+    map.fitBounds(bounds.pad(0.24), { animate: false });
+  }
+
+  if (map.getZoom() > 12) {
+    map.setZoom(12, { animate: false });
+  }
 }
 
 function DemandHeatLayer({ points }) {
@@ -122,10 +142,11 @@ export default function CaptainDemandMap({ points }) {
       className="h-full w-full bg-[#f5f1ed]"
     >
       <TileLayer
-        url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+        url="https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png"
         detectRetina
         keepBuffer={4}
         updateWhenIdle={false}
+        subdomains="abcd"
       />
       <DemandHeatLayer points={points} />
       <DemandViewport points={points} />

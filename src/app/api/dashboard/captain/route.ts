@@ -107,6 +107,15 @@ export async function GET(request: Request) {
             },
           },
         },
+        payoutTransactions: {
+          where: {
+            type: "REWARD_PAYOUT" as const,
+          },
+          orderBy: {
+            createdAt: "desc",
+          },
+          take: 1,
+        },
       },
       orderBy: {
         createdAt: "desc",

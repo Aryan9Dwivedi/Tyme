@@ -63,7 +63,7 @@ function hotspotTone(hotspot, index) {
 }
 
 export default function CaptainDemandPanel() {
-  const [windowMinutes, setWindowMinutes] = useState("60");
+  const [windowMinutes, setWindowMinutes] = useState("120");
   const [category, setCategory] = useState("");
   const [live, setLive] = useState(true);
 

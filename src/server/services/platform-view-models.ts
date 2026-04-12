@@ -81,6 +81,7 @@ export function taskViewFromRecord(task: any) {
   const assignedCaptain = assignment?.captain ?? null;
   const offers = task.offers ?? [];
   const ratings = assignment?.ratings ?? [];
+  const payoutTransaction = assignment?.payoutTransactions?.[0] ?? null;
 
   return {
     id: task.id,
@@ -109,6 +110,9 @@ export function taskViewFromRecord(task: any) {
     accepted_at: assignment?.acceptedAt ?? null,
     started_at: assignment?.startedAt ?? null,
     completed_at: assignment?.completedAt ?? null,
+    payout_status: payoutTransaction?.status ?? null,
+    payout_amount: payoutTransaction?.amountTokens ?? task.tokenBudget ?? 0,
+    payout_released_at: payoutTransaction?.confirmedAt ?? null,
     required_skills:
       task.requiredSkills?.map((link: any) => link.skill.label ?? titleCase(link.skill.slug)) ?? [],
     required_skill_slugs:
@@ -153,6 +157,8 @@ export function opportunityViewFromOffer(offer: any, recommendation: any) {
 }
 
 export function assignmentViewFromRecord(assignment: any) {
+  const payoutTransaction = assignment.payoutTransactions?.[0] ?? null;
+
   return {
     id: assignment.id,
     task_id: assignment.taskId,
@@ -173,6 +179,9 @@ export function assignmentViewFromRecord(assignment: any) {
     accepted_at: assignment.acceptedAt,
     started_at: assignment.startedAt,
     completed_at: assignment.completedAt,
+    payout_status: payoutTransaction?.status ?? null,
+    payout_amount: payoutTransaction?.amountTokens ?? assignment.task.tokenBudget ?? 0,
+    payout_released_at: payoutTransaction?.confirmedAt ?? null,
     requester: assignment.task.creator
       ? {
           id: assignment.task.creator.id,

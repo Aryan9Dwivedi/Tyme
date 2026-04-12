@@ -85,19 +85,23 @@ export default function TaskDetail() {
   const taskQuery = useQuery({
     queryKey: ["task", id],
     queryFn: () => fetchTask(id),
-    refetchInterval: 4000,
+    refetchInterval: 2000,
+    refetchIntervalInBackground: true,
   });
 
   const feedbackMutation = useMutation({
     mutationFn: (payload) => submitTaskFeedback(id, payload),
-    onSuccess: async () => {
+    onSuccess: async (payload) => {
       toast({
-        title: "Feedback saved",
-        description: "Tyme will use this to sharpen future recommendations.",
+        title: payload?.payoutReleased ? "Feedback saved and payout released" : "Feedback saved",
+        description: payload?.payoutReleased
+          ? "Tyme released the reward to the captain after both sides closed the loop."
+          : "Tyme will use this to sharpen future recommendations.",
       });
       await queryClient.invalidateQueries({ queryKey: ["task", id] });
       await queryClient.invalidateQueries({ queryKey: ["user-dashboard"] });
       await queryClient.invalidateQueries({ queryKey: ["captain-dashboard"] });
+      await queryClient.invalidateQueries({ queryKey: ["captain-assignments"] });
     },
     onError: (error) => {
       toast({
@@ -240,7 +244,13 @@ export default function TaskDetail() {
                   <Coins size={20} className="text-amber flex-shrink-0" />
                   <div>
                     <div className="font-semibold text-ink">{task.token_budget} TB</div>
-                    <div className="text-xs text-ink-tertiary">Reserved for the captain who completes this task.</div>
+                    <div className="text-xs text-ink-tertiary">
+                      {task.payout_status === "CONFIRMED"
+                        ? "Reward released to the captain after feedback was completed."
+                        : task.status === "COMPLETED"
+                          ? "Reward is queued and will release after both sides submit feedback."
+                          : "Reserved for the captain who completes this task."}
+                    </div>
                   </div>
                 </div>
               )}

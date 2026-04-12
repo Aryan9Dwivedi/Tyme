@@ -22,7 +22,8 @@ export default function NearbyOpportunities() {
   const opportunitiesQuery = useQuery({
     queryKey: ["captain-opportunities"],
     queryFn: fetchCaptainOpportunities,
-    refetchInterval: 4000,
+    refetchInterval: 2000,
+    refetchIntervalInBackground: true,
   });
 
   const actionMutation = useMutation({

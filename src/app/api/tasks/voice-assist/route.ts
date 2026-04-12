@@ -81,7 +81,7 @@ export async function POST(request: Request) {
       audioFile,
       typeof languageCodeField === "string" ? languageCodeField : undefined,
     );
-    const combinedTranscript = [assistInput.transcript, voiceAssist.transcript].filter(Boolean).join("\n");
+    const combinedTranscript = voiceAssist.transcript.trim();
     const assist = await assistTask({
       ...assistInput,
       transcript: combinedTranscript,

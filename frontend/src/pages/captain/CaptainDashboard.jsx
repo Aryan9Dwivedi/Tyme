@@ -27,7 +27,8 @@ export default function CaptainDashboard() {
   const dashboardQuery = useQuery({
     queryKey: ["captain-dashboard"],
     queryFn: fetchCaptainDashboard,
-    refetchInterval: 4000,
+    refetchInterval: 2000,
+    refetchIntervalInBackground: true,
   });
 
   const profile = dashboardQuery.data?.profile;
@@ -160,7 +161,12 @@ export default function CaptainDashboard() {
             </div>
             <div className="space-y-3">
               {opportunities.length ? opportunities.slice(0, 2).map((opportunity) => (
-                <OpportunityCard key={opportunity.id} opportunity={opportunity} />
+                <OpportunityCard
+                  key={opportunity.id}
+                  opportunity={opportunity}
+                  onAccept={() => actionMutation.mutate({ offerId: opportunity.offer_id, type: "accept" })}
+                  onDecline={() => actionMutation.mutate({ offerId: opportunity.offer_id, type: "decline" })}
+                />
               )) : (
                 <div className="rounded-2xl border border-border bg-white px-5 py-6 text-sm text-ink-tertiary">
                   Tyme is waiting for the next ranked task to hit your lane.

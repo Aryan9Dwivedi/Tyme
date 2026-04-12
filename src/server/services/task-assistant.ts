@@ -64,6 +64,11 @@ type CategoryProfile = {
   defaultSkills: string[];
 };
 
+type DescriptionTemplate = {
+  categories: AssistantCategory[];
+  text: string;
+};
+
 const CATEGORY_PROFILES: CategoryProfile[] = [
   {
     category: "errands",
@@ -215,6 +220,73 @@ const TITLE_PREFIX_PATTERNS = [
   /^need help to\s+/i,
   /^need help with\s+/i,
   /^help me\s+/i,
+];
+
+const DESCRIPTION_TEMPLATES: DescriptionTemplate[] = [
+  {
+    categories: ["errands"],
+    text: "Handle a short errand for the requester, confirm the item or pickup details, and close the loop once it is done.",
+  },
+  {
+    categories: ["errands"],
+    text: "Pick up what the requester needs, keep timing clear, and complete a clean handoff at the end.",
+  },
+  {
+    categories: ["mobility"],
+    text: "Help the requester get from one place to another safely and stay coordinated around arrival timing.",
+  },
+  {
+    categories: ["mobility"],
+    text: "Provide calm travel support, confirm the route or destination, and help the requester reach the stop smoothly.",
+  },
+  {
+    categories: ["wellness"],
+    text: "Step in with supportive, calm help and keep the requester comfortable and updated throughout the visit.",
+  },
+  {
+    categories: ["wellness"],
+    text: "Provide a steady wellness check-in or support visit and communicate clearly during the handoff.",
+  },
+  {
+    categories: ["learning"],
+    text: "Guide the requester through the topic step by step and leave them with a clear next move when the session ends.",
+  },
+  {
+    categories: ["learning"],
+    text: "Help with practice, tutoring, or homework support and keep the pace easy to follow from start to finish.",
+  },
+  {
+    categories: ["household"],
+    text: "Handle the practical household task safely, keep the requester updated, and leave the space in good order.",
+  },
+  {
+    categories: ["household"],
+    text: "Step in for a home task, keep the work tidy, and confirm once the job is wrapped up.",
+  },
+  {
+    categories: ["delivery"],
+    text: "Complete the pickup and drop-off cleanly, keep the requester updated on timing, and confirm the handoff at the end.",
+  },
+  {
+    categories: ["delivery"],
+    text: "Handle the delivery run from pickup through drop-off and communicate clearly if timing shifts.",
+  },
+  {
+    categories: ["other"],
+    text: "Help with the request, clarify anything important at the start, and keep the requester updated as you go.",
+  },
+  {
+    categories: ["other"],
+    text: "Step in for a short local task, stay coordinated on timing, and finish with a clean handoff.",
+  },
+  {
+    categories: ["errands", "delivery", "mobility"],
+    text: "Move quickly on the request, confirm the key details early, and keep the requester posted until it is complete.",
+  },
+  {
+    categories: ["wellness", "learning", "household", "other"],
+    text: "Approach the task with clear communication, keep the requester informed, and wrap up with a smooth final check-in.",
+  },
 ];
 
 function compactWhitespace(value: string) {
@@ -427,6 +499,10 @@ function sanitizeTitleCandidate(value: string) {
   return cleaned.length > 72 ? `${cleaned.slice(0, 69).trim()}...` : cleaned;
 }
 
+function hashString(value: string) {
+  return Array.from(value).reduce((hash, character) => hash + character.charCodeAt(0), 0);
+}
+
 function defaultTitleFromText(text: string) {
   const trimmed = compactWhitespace(text);
   if (!trimmed) {
@@ -439,6 +515,8 @@ function defaultTitleFromText(text: string) {
 
 function buildFallbackDescription(
   combinedText: string,
+  category: AssistantCategory,
+  taskType: AssistantTaskType,
   title: string,
   urgency: AssistantUrgency,
   locationLabel: string,
@@ -446,12 +524,22 @@ function buildFallbackDescription(
 ) {
   const cleanedText = compactWhitespace(combinedText);
   const cleanedNotes = compactWhitespace(notes);
+  const templates = DESCRIPTION_TEMPLATES.filter((template) => template.categories.includes(category));
+  const selectedTemplate =
+    templates.length > 0
+      ? templates[hashString(`${title}:${cleanedText}:${category}`) % templates.length].text
+      : DESCRIPTION_TEMPLATES[hashString(`${title}:${cleanedText}`) % DESCRIPTION_TEMPLATES.length].text;
   const sentences: string[] = [];
 
-  if (cleanedText) {
+  if (cleanedText.length >= 72) {
     sentences.push(toSentence(cleanedText));
   } else {
-    sentences.push(toSentence(title));
+    sentences.push(toSentence(selectedTemplate));
+    if (cleanedText) {
+      sentences.push(toSentence(`Task context: ${cleanedText}`));
+    } else {
+      sentences.push(toSentence(title));
+    }
   }
 
   if (locationLabel && locationLabel !== "Current device location") {
@@ -464,6 +552,10 @@ function buildFallbackDescription(
     sentences.push("This should be handled as soon as possible.");
   } else if (urgency === "medium" && !/today|tomorrow|soon|this week/i.test(cleanedText)) {
     sentences.push("Same-day help is preferred if possible.");
+  }
+
+  if (taskType === "token-funded" && !/\breward\b|\bpay\b|\btoken\b|\bbudget\b/i.test(cleanedText)) {
+    sentences.push("A token-funded reward is attached for the captain who completes it.");
   }
 
   if (cleanedNotes) {
@@ -539,7 +631,7 @@ async function requestGeminiDraft(input: AssistTaskInput): Promise<Partial<TaskA
             text: `You are drafting a neighbor-help task for captains to act on quickly.
 
 Return JSON only with exactly these keys:
-title, description, category, taskType, urgency, tokenBudget, radiusKm, requiredSkills, notes
+title, category, taskType, urgency, tokenBudget, radiusKm, requiredSkills, notes
 
 Allowed values:
 - category: errands, mobility, wellness, learning, household, delivery, other
@@ -549,7 +641,6 @@ Allowed values:
 
 Quality rules:
 - Write a short, natural title captains can scan in seconds.
-- Write a description that explains the task clearly, including timing or sensitive details if they matter.
 - Infer the best category from the request. Do not leave it generic unless there is no stronger fit.
 - Pick urgency based on time pressure in the request.
 - If the request sounds unpaid or volunteer-based, use volunteer. If it mentions budget, pay, reward, dollars, tokens, or compensation, use token-funded.
@@ -645,7 +736,9 @@ export async function assistTask(input: AssistTaskInput): Promise<TaskAssistResu
   const category = normalizeCategoryEnum(geminiDraft?.category || input.category, combinedText || title);
   const categoryKey = categoryEnumToKey(category) || fallbackCategory;
   const description = buildFallbackDescription(
-    geminiDraft?.description || input.description || input.transcript || title,
+    input.description || input.transcript || title,
+    categoryKey,
+    taskType === "TOKEN_FUNDED" ? "token-funded" : "volunteer",
     title,
     urgency.toLowerCase() as AssistantUrgency,
     fallbackLocationLabel,
