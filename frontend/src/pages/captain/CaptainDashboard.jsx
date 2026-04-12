@@ -5,6 +5,7 @@ import { ArrowRight, CheckCircle, Coins, Star, ToggleRight, Zap, LoaderCircle } 
 import AppShell from "../../components/AppShell";
 import StatCard from "../../components/StatCard";
 import OpportunityCard from "../../components/OpportunityCard";
+import CaptainDemandPanel from "../../components/captain/CaptainDemandPanel";
 import { AvailabilityDot, TrustScore } from "../../components/ui/StatusBadge";
 import { fetchCaptainDashboard } from "@/lib/platform-api";
 
@@ -59,6 +60,8 @@ export default function CaptainDashboard() {
           <StatCard label="Completed" value={stats.completedAssignments} icon={CheckCircle} sub="successful handoffs" />
           <StatCard label="Wallet" value={`${stats.earnings} TB`} icon={Coins} sub="available rewards" />
         </div>
+
+        <CaptainDemandPanel />
 
         <div className="grid md:grid-cols-2 gap-6">
           <section>

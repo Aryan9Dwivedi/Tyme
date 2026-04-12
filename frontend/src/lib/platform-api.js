@@ -47,6 +47,24 @@ export function fetchCaptainDashboard() {
   return apiRequest("/api/dashboard/captain");
 }
 
+export function fetchCaptainDemandHeatmap({ lastMinutes = 60, category = "", urgency = "" } = {}) {
+  const params = new URLSearchParams();
+
+  if (lastMinutes) {
+    params.set("lastMinutes", String(lastMinutes));
+  }
+
+  if (category) {
+    params.set("category", category);
+  }
+
+  if (urgency) {
+    params.set("urgency", urgency);
+  }
+
+  return apiRequest(`/api/captain/heatmap${params.toString() ? `?${params.toString()}` : ""}`);
+}
+
 export function fetchMyTasks({ status } = {}) {
   const params = new URLSearchParams();
   if (status && status !== "ALL") {
