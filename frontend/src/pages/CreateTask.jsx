@@ -133,6 +133,10 @@ function createAssistSignature(formState) {
   return JSON.stringify(createAssistPayload(formState));
 }
 
+function isCurrentDeviceLocationLabel(value) {
+  return !value || value.trim() === "Current device location";
+}
+
 function mergeVoiceAssistIntoForm(current, payload, skillsTouched) {
   return {
     ...current,
@@ -187,6 +191,7 @@ export default function CreateTask() {
   const isEditing = Boolean(id);
   const shouldStartVoice = searchParams.get("voice") === "1";
   const [form, setForm] = useState(createEmptyForm);
+  const [locationMode, setLocationMode] = useState("device");
   const [locationStatus, setLocationStatus] = useState(
     "Checking your device location so captains start from the right area.",
   );
@@ -250,6 +255,7 @@ export default function CreateTask() {
       notes: task.notes ?? "",
       voiceTranscript: task.voice_transcript ?? "",
     });
+    setLocationMode(isCurrentDeviceLocationLabel(task.location_address ?? "") ? "device" : "address");
     hasHydratedEditRef.current = true;
     setLocationStatus(task.location_address ? "Using the saved location for this task." : "Location ready.");
   }, [taskQuery.data]);
@@ -358,7 +364,9 @@ export default function CreateTask() {
           latitude: current.latitude ?? Number(position.coords.latitude.toFixed(6)),
           longitude: current.longitude ?? Number(position.coords.longitude.toFixed(6)),
           locationLabel:
-            current.locationLabel || "Current device location",
+            usingDeviceLocation || isCurrentDeviceLocationLabel(current.locationLabel)
+              ? "Current device location"
+              : current.locationLabel,
         }));
         setLocationStatus("Using your current device location for captain ranking and arrival guidance.");
       },
@@ -367,7 +375,7 @@ export default function CreateTask() {
       },
       { enableHighAccuracy: true, timeout: 10000 },
     );
-  }, [isEditing]);
+  }, [isEditing, usingDeviceLocation]);
 
   function clearVoiceTimer() {
     if (voiceTimeoutRef.current) {
@@ -670,6 +678,7 @@ export default function CreateTask() {
   );
   const hasDeviceLocation = typeof form.latitude === "number" && typeof form.longitude === "number";
   const selectedCategory = CATEGORY_OPTIONS.find((category) => category.value === form.category)?.label ?? "";
+  const usingDeviceLocation = locationMode === "device";
 
   const addManualSkill = () => {
     const slug = manualSkill.trim().toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
@@ -724,12 +733,39 @@ export default function CreateTask() {
           ...current,
           latitude: Number(position.coords.latitude.toFixed(6)),
           longitude: Number(position.coords.longitude.toFixed(6)),
-          locationLabel: current.locationLabel || "Current device location",
+          locationLabel:
+            usingDeviceLocation || isCurrentDeviceLocationLabel(current.locationLabel)
+              ? "Current device location"
+              : current.locationLabel,
         }));
         setLocationStatus("Location refreshed. Matching will use your latest device location.");
       },
       () => setLocationStatus("We could not refresh your device location."),
       { enableHighAccuracy: true, timeout: 10000 },
+    );
+  };
+
+  const handleLocationModeChange = (nextMode) => {
+    setLocationMode(nextMode);
+    setForm((current) => {
+      if (nextMode === "device") {
+        return {
+          ...current,
+          locationLabel: "Current device location",
+        };
+      }
+
+      return {
+        ...current,
+        locationLabel: isCurrentDeviceLocationLabel(current.locationLabel) ? "" : current.locationLabel,
+      };
+    });
+    setLocationStatus(
+      nextMode === "device"
+        ? hasDeviceLocation
+          ? "Using your current device location for captain ranking and arrival guidance."
+          : "Checking your device location so captains start from the right area."
+        : "Add a clear meeting point so captains know exactly where to head.",
     );
   };
 
@@ -984,42 +1020,66 @@ export default function CreateTask() {
                     Refresh
                   </button>
                 </div>
-                <div className="relative">
-                  <MapPin size={15} className="absolute left-4 top-1/2 -translate-y-1/2 text-ink-tertiary" />
-                  <input
-                    type="text"
-                    value={form.locationLabel}
-                    onChange={(event) => setForm((current) => ({ ...current, locationLabel: event.target.value }))}
-                    className="input-premium pl-10"
-                    placeholder="Front desk, lobby, gate, or another meeting point"
-                  />
+                <div className="grid grid-cols-2 gap-2">
+                  <button
+                    type="button"
+                    onClick={() => handleLocationModeChange("device")}
+                    className={`rounded-2xl border px-3 py-3 text-sm font-medium transition-all ${
+                      usingDeviceLocation
+                        ? "border-teal bg-teal-light text-teal"
+                        : "border-border bg-white text-ink-secondary hover:border-teal/30"
+                    }`}
+                  >
+                    Use current location
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleLocationModeChange("address")}
+                    className={`rounded-2xl border px-3 py-3 text-sm font-medium transition-all ${
+                      !usingDeviceLocation
+                        ? "border-teal bg-teal-light text-teal"
+                        : "border-border bg-white text-ink-secondary hover:border-teal/30"
+                    }`}
+                  >
+                    Add address
+                  </button>
                 </div>
-                <div className="mt-3 rounded-2xl border border-border bg-canvas px-3.5 py-3">
-                  <div className="flex items-start justify-between gap-3">
-                    <div className="min-w-0">
-                      <div className="inline-flex items-center gap-2 rounded-full bg-white px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.16em] text-teal shadow-premium">
+
+                {usingDeviceLocation ? (
+                  <div className="mt-3 rounded-2xl border border-border bg-canvas px-4 py-4">
+                    <div className="flex flex-wrap items-center justify-between gap-2">
+                      <div className="inline-flex items-center gap-2 rounded-full bg-white px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.16em] text-teal shadow-premium">
                         <span className={`h-1.5 w-1.5 rounded-full ${hasDeviceLocation ? "animate-pulse bg-teal" : "bg-ink-disabled"}`} />
-                        {hasDeviceLocation ? "Device location ready" : "Finding your device"}
+                        {hasDeviceLocation ? "Current device location ready" : "Finding your device"}
                       </div>
-                      <p className="mt-2 text-sm leading-relaxed text-ink-secondary">{locationStatus}</p>
-                      <p className="mt-2 text-xs text-ink-tertiary">
-                        {form.locationLabel === "Current device location" || !form.locationLabel
-                          ? "Keep this if captains should navigate to you. Replace it only if they should meet somewhere else."
-                          : "Captains will first see the meeting point you typed above."}
-                      </p>
-                    </div>
-                    {hasDeviceLocation && (
-                      <div className="shrink-0 rounded-2xl bg-white px-3 py-2 text-right shadow-premium">
-                        <div className="text-[10px] font-semibold uppercase tracking-[0.16em] text-ink-tertiary">
-                          Live pin
-                        </div>
-                        <div className="mt-1 text-xs font-medium text-ink">
+                      {hasDeviceLocation && (
+                        <div className="text-xs font-medium text-ink-secondary">
                           {form.latitude?.toFixed(4)}, {form.longitude?.toFixed(4)}
                         </div>
-                      </div>
-                    )}
+                      )}
+                    </div>
+                    <p className="mt-3 text-sm leading-relaxed text-ink-secondary">{locationStatus}</p>
+                    <p className="mt-2 text-xs text-ink-tertiary">
+                      Captains will navigate to your live device location unless you switch to a typed meeting point.
+                    </p>
                   </div>
-                </div>
+                ) : (
+                  <div className="mt-3 space-y-3">
+                    <div className="relative">
+                      <MapPin size={15} className="absolute left-4 top-1/2 -translate-y-1/2 text-ink-tertiary" />
+                      <input
+                        type="text"
+                        value={form.locationLabel}
+                        onChange={(event) => setForm((current) => ({ ...current, locationLabel: event.target.value }))}
+                        className="input-premium pl-10"
+                        placeholder="Front desk, lobby, gate, or another meeting point"
+                      />
+                    </div>
+                    <div className="rounded-2xl border border-border bg-canvas px-4 py-3 text-xs leading-relaxed text-ink-tertiary">
+                      Add the exact meeting point captains should look for when they arrive.
+                    </div>
+                  </div>
+                )}
               </div>
 
               <div>
