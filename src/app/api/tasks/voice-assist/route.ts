@@ -1,7 +1,7 @@
 import { getCurrentAuthUser } from "@/server/auth/current-user";
 import { jsonWithCors, preflightResponse } from "@/server/http/cors";
 import { transcribeTaskVoice } from "@/server/services/elevenlabs-speech";
-import { assistTask, suggestSkillSlugs, type AssistTaskInput } from "@/server/services/task-assistant";
+import { assistTask, type AssistTaskInput } from "@/server/services/task-assistant";
 
 export const runtime = "nodejs";
 
@@ -92,10 +92,7 @@ export async function POST(request: Request) {
       combinedTranscript,
       languageCode: voiceAssist.languageCode,
       draft: assist.draft,
-      suggestedSkills: suggestSkillSlugs({
-        ...assistInput,
-        transcript: combinedTranscript,
-      }),
+      suggestedSkills: assist.draft.requiredSkills,
       providers: {
         ...assist.providers,
         ...voiceAssist.providers,

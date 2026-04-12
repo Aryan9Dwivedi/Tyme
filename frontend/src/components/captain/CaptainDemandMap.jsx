@@ -6,6 +6,23 @@ import "leaflet.heat";
 
 const CHICAGO_CENTER = [41.8781, -87.6298];
 
+function syncMapViewport(map, points) {
+  map.invalidateSize({ pan: false, debounceMoveend: true });
+
+  if (!points.length) {
+    map.setView(CHICAGO_CENTER, 11, { animate: false });
+    return;
+  }
+
+  if (points.length === 1) {
+    map.setView([points[0].latitude, points[0].longitude], 13, { animate: false });
+    return;
+  }
+
+  const bounds = L.latLngBounds(points.map((point) => [point.latitude, point.longitude]));
+  map.fitBounds(bounds.pad(0.18), { animate: false });
+}
+
 function DemandHeatLayer({ points }) {
   const map = useMap();
   const layerRef = useRef(null);
@@ -59,24 +76,35 @@ function DemandViewport({ points }) {
   const map = useMap();
 
   useEffect(() => {
-    const timerId = window.setTimeout(() => {
-      map.invalidateSize();
-
-      if (!points.length) {
-        map.setView(CHICAGO_CENTER, 11, { animate: false });
-        return;
-      }
-
-      if (points.length === 1) {
-        map.setView([points[0].latitude, points[0].longitude], 13, { animate: false });
-        return;
-      }
-
-      const bounds = L.latLngBounds(points.map((point) => [point.latitude, point.longitude]));
-      map.fitBounds(bounds.pad(0.18), { animate: false });
+    const container = map.getContainer();
+    let animationFrameId = 0;
+    const timeoutId = window.setTimeout(() => {
+      syncMapViewport(map, points);
     }, 0);
 
-    return () => window.clearTimeout(timerId);
+    const queueSync = () => {
+      window.cancelAnimationFrame(animationFrameId);
+      animationFrameId = window.requestAnimationFrame(() => {
+        syncMapViewport(map, points);
+      });
+    };
+
+    const resizeObserver =
+      typeof ResizeObserver !== "undefined"
+        ? new ResizeObserver(() => {
+            queueSync();
+          })
+        : null;
+
+    resizeObserver?.observe(container);
+    window.addEventListener("resize", queueSync);
+
+    return () => {
+      window.clearTimeout(timeoutId);
+      window.cancelAnimationFrame(animationFrameId);
+      window.removeEventListener("resize", queueSync);
+      resizeObserver?.disconnect();
+    };
   }, [map, points]);
 
   return null;
@@ -90,10 +118,14 @@ export default function CaptainDemandMap({ points }) {
       scrollWheelZoom={false}
       zoomControl={false}
       attributionControl={false}
-      className="h-full w-full"
+      preferCanvas
+      className="h-full w-full bg-[#f5f1ed]"
     >
       <TileLayer
         url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+        detectRetina
+        keepBuffer={4}
+        updateWhenIdle={false}
       />
       <DemandHeatLayer points={points} />
       <DemandViewport points={points} />

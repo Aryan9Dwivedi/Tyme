@@ -1,6 +1,6 @@
 import { getCurrentAuthUser } from "@/server/auth/current-user";
 import { jsonWithCors, preflightResponse } from "@/server/http/cors";
-import { assistTask, suggestSkillSlugs } from "@/server/services/task-assistant";
+import { assistTask } from "@/server/services/task-assistant";
 
 function badRequest(message: string, status = 400) {
   return jsonWithCors({ error: message }, { status });
@@ -41,7 +41,7 @@ export async function POST(request: Request) {
 
   return jsonWithCors({
     draft: assist.draft,
-    suggestedSkills: suggestSkillSlugs(assistInput),
+    suggestedSkills: assist.draft.requiredSkills,
     providers: assist.providers,
   });
 }

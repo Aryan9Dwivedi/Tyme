@@ -184,7 +184,7 @@ export default function CaptainDemandPanel() {
             )}
           </div>
 
-          <div className="h-[360px] bg-[#f5f1ed] md:h-[420px]">
+          <div className="h-[360px] overflow-hidden bg-[#f5f1ed] md:h-[420px]">
             {heatmapQuery.isLoading && !hotspots.length ? (
               <div className="flex h-full items-center justify-center px-6 text-sm text-ink-tertiary">
                 Loading your best next zones...

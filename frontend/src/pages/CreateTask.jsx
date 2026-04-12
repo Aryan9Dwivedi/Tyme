@@ -145,12 +145,7 @@ function createAssistPayload(formState) {
 }
 
 function createAssistSignature(formState) {
-  return JSON.stringify({
-    title: formState.title,
-    description: formState.description,
-    category: formState.category,
-    transcript: formState.voiceTranscript,
-  });
+  return JSON.stringify(createAssistPayload(formState));
 }
 
 function mergeAssistIntoForm(current, payload, skillsTouched) {
@@ -186,13 +181,13 @@ export default function CreateTask() {
   const shouldStartVoice = searchParams.get("voice") === "1";
   const [form, setForm] = useState(createEmptyForm);
   const [locationStatus, setLocationStatus] = useState(
-    "Finding your device location for better nearby captain matching.",
+    "Checking your device location so captains start from the right area.",
   );
   const [isRecording, setIsRecording] = useState(false);
   const [skillsTouched, setSkillsTouched] = useState(false);
   const [manualSkill, setManualSkill] = useState("");
   const [voiceStatus, setVoiceStatus] = useState(
-    "Record a short note. ElevenLabs will transcribe it and Gemini will shape the task details.",
+    "Speak naturally. ElevenLabs will transcribe your note and Gemini will shape the title, description, category, and skills.",
   );
   const [providerSummary, setProviderSummary] = useState({
     drafting: "",
@@ -254,6 +249,11 @@ export default function CreateTask() {
         drafting: payload.providers?.drafting ?? current.drafting,
         draftingModel: payload.providers?.draftingModel ?? current.draftingModel,
       }));
+      setVoiceStatus(
+        payload.providers?.drafting === "gemini"
+          ? "Tyme Assist refreshed the title, description, category, urgency, and skills."
+          : "Tyme Assist refreshed the form using the local drafting fallback.",
+      );
     },
   });
 
@@ -268,8 +268,8 @@ export default function CreateTask() {
       });
       setVoiceStatus(
         payload.providers?.drafting === "gemini"
-          ? "Voice captured with ElevenLabs and cleaned up with Gemini."
-          : "Voice captured with ElevenLabs. Tyme used the local drafting fallback for the form.",
+          ? "Voice note synced. ElevenLabs captured it and Gemini refreshed the title, details, category, urgency, and skills."
+          : "Voice note synced. ElevenLabs captured it and Tyme used the local drafting fallback to fill the form.",
       );
       setForm((current) => {
         const merged = mergeAssistIntoForm(current, payload, skillsTouched);
@@ -355,10 +355,10 @@ export default function CreateTask() {
           locationLabel:
             current.locationLabel || "Current device location",
         }));
-        setLocationStatus("Device location ready. Captains will be ranked around this area.");
+        setLocationStatus("Using your current device location for captain ranking and arrival guidance.");
       },
       () => {
-        setLocationStatus("We could not read your location. You can still type it in manually.");
+        setLocationStatus("We could not read your device location. You can still type a meeting point manually.");
       },
       { enableHighAccuracy: true, timeout: 10000 },
     );
@@ -548,6 +548,8 @@ export default function CreateTask() {
       ).slice(0, 6),
     [assistMutation.data?.suggestedSkills, form.requiredSkills, voiceAssistMutation.data?.suggestedSkills],
   );
+  const hasDeviceLocation = typeof form.latitude === "number" && typeof form.longitude === "number";
+  const selectedCategory = CATEGORY_OPTIONS.find((category) => category.value === form.category)?.label ?? "";
 
   const addManualSkill = () => {
     const slug = manualSkill.trim().toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
@@ -577,7 +579,7 @@ export default function CreateTask() {
     if (voiceAssistMutation.isPending) {
       toast({
         title: "Voice assist is syncing",
-        description: "Wait for the current ElevenLabs transcription to finish first.",
+        description: "Wait for the current ElevenLabs transcript to finish syncing first.",
       });
       return;
     }
@@ -606,7 +608,7 @@ export default function CreateTask() {
         }));
         setLocationStatus("Location refreshed. Matching will use your latest device location.");
       },
-      () => setLocationStatus("We could not refresh your location."),
+      () => setLocationStatus("We could not refresh your device location."),
       { enableHighAccuracy: true, timeout: 10000 },
     );
   };
@@ -728,13 +730,17 @@ export default function CreateTask() {
                 placeholder="Tell captains what to do, any deadlines, and anything sensitive they should know."
                 className="input-premium min-h-[140px] resize-none"
               />
+              <p className="mt-2 text-xs text-ink-tertiary">
+                Tyme Assist reads this first, then auto-picks the category, urgency, and skill tags for you.
+              </p>
             </div>
 
-              <button
-                type="button"
-                onClick={() => assistMutation.mutate(createAssistPayload(form))}
-                className="inline-flex items-center gap-2 rounded-2xl border border-border bg-canvas px-4 py-2 text-sm font-medium text-ink hover:border-teal/30"
-              >
+            <button
+              type="button"
+              onClick={() => assistMutation.mutate(createAssistPayload(form))}
+              disabled={assistMutation.isPending || voiceAssistMutation.isPending}
+              className="inline-flex items-center gap-2 rounded-2xl border border-border bg-canvas px-4 py-2 text-sm font-medium text-ink hover:border-teal/30 disabled:cursor-not-allowed disabled:opacity-60"
+            >
               <WandSparkles size={15} className="text-teal" />
               Re-run Tyme Assist
             </button>
@@ -760,6 +766,11 @@ export default function CreateTask() {
                     </button>
                   ))}
                 </div>
+                <p className="mt-2 text-xs text-ink-tertiary">
+                  {selectedCategory
+                    ? `Tyme Assist currently reads this as ${selectedCategory}. You can still override it.`
+                    : "Leave this alone if you want Tyme Assist to choose the best fit from the request details."}
+                </p>
               </div>
 
               <div>
@@ -860,24 +871,33 @@ export default function CreateTask() {
                     value={form.locationLabel}
                     onChange={(event) => setForm((current) => ({ ...current, locationLabel: event.target.value }))}
                     className="input-premium pl-10"
-                    placeholder="Apartment lobby, office gate, or building entrance"
+                    placeholder="Front desk, lobby, gate, or another meeting point"
                   />
                 </div>
                 <div className="mt-3 rounded-2xl border border-border bg-canvas px-3.5 py-3">
-                  <div className="flex items-start gap-3">
-                    <div className="mt-0.5 rounded-2xl bg-white p-2 text-teal shadow-premium">
-                      <MapPin size={13} />
-                    </div>
+                  <div className="flex items-start justify-between gap-3">
                     <div className="min-w-0">
-                      <div className="text-xs font-semibold text-ink">Auto location</div>
-                      <p className="text-xs text-ink-tertiary leading-relaxed mt-1">{locationStatus}</p>
-                      {typeof form.latitude === "number" && typeof form.longitude === "number" && (
-                        <div className="mt-2 inline-flex items-center gap-2 rounded-full bg-white px-2.5 py-1 text-[11px] font-medium text-teal">
-                          <span className="h-1.5 w-1.5 rounded-full bg-teal animate-pulse" />
-                          Device pin locked for matching
-                        </div>
-                      )}
+                      <div className="inline-flex items-center gap-2 rounded-full bg-white px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.16em] text-teal shadow-premium">
+                        <span className={`h-1.5 w-1.5 rounded-full ${hasDeviceLocation ? "animate-pulse bg-teal" : "bg-ink-disabled"}`} />
+                        {hasDeviceLocation ? "Device location ready" : "Finding your device"}
+                      </div>
+                      <p className="mt-2 text-sm leading-relaxed text-ink-secondary">{locationStatus}</p>
+                      <p className="mt-2 text-xs text-ink-tertiary">
+                        {form.locationLabel === "Current device location" || !form.locationLabel
+                          ? "Keep this if captains should navigate to you. Replace it only if they should meet somewhere else."
+                          : "Captains will first see the meeting point you typed above."}
+                      </p>
                     </div>
+                    {hasDeviceLocation && (
+                      <div className="shrink-0 rounded-2xl bg-white px-3 py-2 text-right shadow-premium">
+                        <div className="text-[10px] font-semibold uppercase tracking-[0.16em] text-ink-tertiary">
+                          Live pin
+                        </div>
+                        <div className="mt-1 text-xs font-medium text-ink">
+                          {form.latitude?.toFixed(4)}, {form.longitude?.toFixed(4)}
+                        </div>
+                      </div>
+                    )}
                   </div>
                 </div>
               </div>

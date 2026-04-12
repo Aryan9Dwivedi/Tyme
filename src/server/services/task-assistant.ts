@@ -56,29 +56,187 @@ export type TaskAssistResult = {
   providers: TaskAssistProviders;
 };
 
-const CATEGORY_KEYWORDS: Array<{ category: AssistantCategory; keywords: string[] }> = [
-  { category: "errands", keywords: ["pickup", "pick up", "grocery", "pharmacy", "medicine", "errand", "shopping"] },
-  { category: "mobility", keywords: ["ride", "transport", "appointment", "walker", "wheelchair", "drive", "drop off"] },
-  { category: "wellness", keywords: ["wellness", "check in", "care", "visit", "support", "companion"] },
-  { category: "learning", keywords: ["tutor", "tutoring", "study", "math", "homework", "language", "practice"] },
-  { category: "household", keywords: ["clean", "moving", "furniture", "boxes", "unpack", "household", "laundry"] },
-  { category: "delivery", keywords: ["deliver", "delivery", "package", "dropoff"] },
+type CategoryProfile = {
+  category: AssistantCategory;
+  label: string;
+  description: string;
+  keywords: string[];
+  defaultSkills: string[];
+};
+
+const CATEGORY_PROFILES: CategoryProfile[] = [
+  {
+    category: "errands",
+    label: "Errands",
+    description: "Pickup, shopping, medicine, grocery, or quick everyday help.",
+    keywords: [
+      "pickup",
+      "pick up",
+      "pharmacy",
+      "medicine",
+      "prescription",
+      "grocery",
+      "shopping",
+      "errand",
+      "store",
+      "buy",
+      "collect",
+      "drop by",
+    ],
+    defaultSkills: ["errands", "delivery"],
+  },
+  {
+    category: "mobility",
+    label: "Mobility",
+    description: "Rides, transport, appointment support, or getting someone somewhere safely.",
+    keywords: [
+      "ride",
+      "transport",
+      "appointment",
+      "wheelchair",
+      "walker",
+      "drive",
+      "drop off",
+      "pickup ride",
+      "take me",
+      "airport",
+      "clinic",
+      "hospital",
+    ],
+    defaultSkills: ["mobility", "senior-support"],
+  },
+  {
+    category: "wellness",
+    label: "Wellness",
+    description: "Check-ins, companionship, support visits, or light care coordination.",
+    keywords: [
+      "wellness",
+      "check in",
+      "care",
+      "support",
+      "companion",
+      "visit",
+      "sit with",
+      "help calm",
+      "keep company",
+      "med check",
+    ],
+    defaultSkills: ["wellness", "senior-support"],
+  },
+  {
+    category: "learning",
+    label: "Learning",
+    description: "Tutoring, homework help, practice, coaching, or school support.",
+    keywords: [
+      "tutor",
+      "tutoring",
+      "teach",
+      "study",
+      "math",
+      "science",
+      "homework",
+      "language",
+      "lesson",
+      "practice",
+      "school",
+      "quiz",
+    ],
+    defaultSkills: ["teaching", "student-support"],
+  },
+  {
+    category: "household",
+    label: "Household",
+    description: "Cleaning, moving, lifting, setup, furniture, chores, or around-the-home help.",
+    keywords: [
+      "clean",
+      "laundry",
+      "moving",
+      "move",
+      "furniture",
+      "boxes",
+      "unpack",
+      "assemble",
+      "apartment",
+      "household",
+      "chores",
+      "room",
+    ],
+    defaultSkills: ["household"],
+  },
+  {
+    category: "delivery",
+    label: "Delivery",
+    description: "Delivering packages, documents, or items from one place to another.",
+    keywords: [
+      "deliver",
+      "delivery",
+      "package",
+      "dropoff",
+      "drop off",
+      "courier",
+      "parcel",
+      "document",
+      "mail",
+    ],
+    defaultSkills: ["delivery", "errands"],
+  },
 ];
+
+const CATEGORY_ENUM_MAP = new Map<
+  string,
+  "ERRANDS" | "MOBILITY" | "WELLNESS" | "LEARNING" | "HOUSEHOLD" | "DELIVERY" | "OTHER"
+>([
+  ["errands", "ERRANDS"],
+  ["mobility", "MOBILITY"],
+  ["wellness", "WELLNESS"],
+  ["learning", "LEARNING"],
+  ["household", "HOUSEHOLD"],
+  ["delivery", "DELIVERY"],
+  ["other", "OTHER"],
+]);
 
 const SKILL_LIBRARY = [
   { slug: "errands", keywords: ["pickup", "pick up", "errand", "shopping", "grocery", "pharmacy", "medicine"] },
-  { slug: "senior-support", keywords: ["senior", "elder", "walker", "check in", "care"] },
-  { slug: "mobility", keywords: ["ride", "transport", "driver", "appointment", "drop off"] },
-  { slug: "teaching", keywords: ["teach", "tutor", "practice", "lesson", "homework"] },
-  { slug: "math", keywords: ["algebra", "math", "calculus"] },
+  { slug: "senior-support", keywords: ["senior", "elder", "walker", "check in", "companion", "care"] },
+  { slug: "mobility", keywords: ["ride", "transport", "driver", "appointment", "drop off", "wheelchair"] },
+  { slug: "teaching", keywords: ["teach", "tutor", "practice", "lesson", "homework", "study"] },
+  { slug: "math", keywords: ["algebra", "geometry", "math", "calculus"] },
   { slug: "student-support", keywords: ["student", "school", "study", "homework"] },
-  { slug: "wellness", keywords: ["wellness", "care", "companion", "support"] },
-  { slug: "household", keywords: ["clean", "moving", "furniture", "boxes", "unpack", "laundry"] },
-  { slug: "delivery", keywords: ["delivery", "deliver", "dropoff", "package"] },
+  { slug: "wellness", keywords: ["wellness", "care", "companion", "support", "visit"] },
+  { slug: "household", keywords: ["clean", "moving", "furniture", "boxes", "unpack", "laundry", "assemble"] },
+  { slug: "delivery", keywords: ["delivery", "deliver", "dropoff", "drop off", "package", "courier"] },
+];
+
+const TITLE_PREFIX_PATTERNS = [
+  /^i need (someone )?to\s+/i,
+  /^can someone\s+/i,
+  /^please\s+/i,
+  /^looking for (someone )?to\s+/i,
+  /^need help to\s+/i,
+  /^need help with\s+/i,
+  /^help me\s+/i,
 ];
 
 function compactWhitespace(value: string) {
   return value.replace(/\s+/g, " ").trim();
+}
+
+function trimTrailingPunctuation(value: string) {
+  return value.replace(/[.!?,;:\s]+$/g, "").trim();
+}
+
+function toSentence(value: string) {
+  const compacted = compactWhitespace(value);
+  if (!compacted) {
+    return "";
+  }
+
+  const normalized = compacted.charAt(0).toUpperCase() + compacted.slice(1);
+  return /[.!?]$/.test(normalized) ? normalized : `${normalized}.`;
+}
+
+function escapeRegExp(value: string) {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
 
 function normalizeCategory(value: string | undefined): AssistantCategory | null {
@@ -86,9 +244,48 @@ function normalizeCategory(value: string | undefined): AssistantCategory | null 
     return null;
   }
 
-  const normalized = value.toLowerCase();
-  const match = CATEGORY_KEYWORDS.find((entry) => entry.category === normalized);
-  return match?.category ?? null;
+  const normalized = compactWhitespace(value)
+    .toLowerCase()
+    .replace(/_/g, "-")
+    .replace(/\s+/g, "-");
+
+  if (normalized === "token-funded" || normalized === "token") {
+    return null;
+  }
+
+  for (const profile of CATEGORY_PROFILES) {
+    if (
+      normalized === profile.category ||
+      normalized === profile.label.toLowerCase() ||
+      normalized === profile.label.toLowerCase().replace(/\s+/g, "-")
+    ) {
+      return profile.category;
+    }
+  }
+
+  return normalized === "other" ? "other" : null;
+}
+
+function includesKeyword(text: string, keyword: string) {
+  if (!keyword) {
+    return false;
+  }
+
+  if (keyword.includes(" ")) {
+    return text.includes(keyword);
+  }
+
+  return new RegExp(`\\b${escapeRegExp(keyword)}\\b`, "i").test(text);
+}
+
+function scoreCategory(text: string, profile: CategoryProfile) {
+  return profile.keywords.reduce((score, keyword) => {
+    if (!includesKeyword(text, keyword)) {
+      return score;
+    }
+
+    return score + (keyword.includes(" ") ? 3 : 2);
+  }, 0);
 }
 
 function inferCategory(text: string, fallback?: string): AssistantCategory {
@@ -98,11 +295,18 @@ function inferCategory(text: string, fallback?: string): AssistantCategory {
   }
 
   const lower = text.toLowerCase();
-  const matchedCategory = CATEGORY_KEYWORDS.find((entry) =>
-    entry.keywords.some((keyword) => lower.includes(keyword)),
-  );
+  let bestCategory: AssistantCategory = "other";
+  let bestScore = 0;
 
-  return matchedCategory?.category ?? "other";
+  for (const profile of CATEGORY_PROFILES) {
+    const score = scoreCategory(lower, profile);
+    if (score > bestScore) {
+      bestCategory = profile.category;
+      bestScore = score;
+    }
+  }
+
+  return bestScore > 0 ? bestCategory : "other";
 }
 
 function inferUrgency(text: string, fallback?: string): AssistantUrgency {
@@ -118,15 +322,35 @@ function inferUrgency(text: string, fallback?: string): AssistantUrgency {
   }
 
   const lower = text.toLowerCase();
+
   if (
-    ["asap", "urgent", "today", "right now", "immediately", "before", "tonight"].some((keyword) =>
-      lower.includes(keyword),
-    )
+    [
+      "asap",
+      "urgent",
+      "emergency",
+      "right now",
+      "immediately",
+      "before ",
+      "tonight",
+      "within an hour",
+      "before 6",
+      "today by",
+    ].some((keyword) => lower.includes(keyword))
   ) {
     return "high";
   }
 
-  if (["tomorrow", "soon", "later today", "this week"].some((keyword) => lower.includes(keyword))) {
+  if (
+    [
+      "today",
+      "this afternoon",
+      "this evening",
+      "tomorrow",
+      "soon",
+      "later today",
+      "this week",
+    ].some((keyword) => lower.includes(keyword))
+  ) {
     return "medium";
   }
 
@@ -139,63 +363,68 @@ function inferTaskType(text: string, fallback?: string): AssistantTaskType {
   }
 
   const lower = text.toLowerCase();
-  return ["reward", "token", "$", "budget", "pay", "paid"].some((keyword) => lower.includes(keyword))
+
+  if (["free", "volunteer", "unpaid", "no reward", "no payment"].some((keyword) => lower.includes(keyword))) {
+    return "volunteer";
+  }
+
+  return ["reward", "token", "$", "budget", "pay", "paid", "compensate", "tb"].some((keyword) =>
+    lower.includes(keyword),
+  )
     ? "token-funded"
     : "volunteer";
 }
 
-function inferTokenBudget(text: string, fallback?: number) {
+function inferTokenBudget(text: string, fallback?: number, taskType?: AssistantTaskType) {
   if (typeof fallback === "number" && Number.isFinite(fallback)) {
     return Math.max(0, Math.round(fallback));
   }
 
-  const moneyMatch = text.match(/\$?\s?(\d{1,3})/);
-  if (moneyMatch) {
-    return Math.max(0, Math.round(Number(moneyMatch[1])));
+  const explicitBudgetMatch = text.match(/(?:\$|tb|tokens?)\s?(\d{1,3})|(\d{1,3})\s?(?:tb|tokens?)/i);
+  if (explicitBudgetMatch) {
+    const firstMatch = explicitBudgetMatch[1] ?? explicitBudgetMatch[2];
+    return Math.max(0, Math.round(Number(firstMatch)));
   }
 
-  return inferTaskType(text) === "token-funded" ? 20 : 0;
+  return taskType === "token-funded" ? 20 : 0;
 }
 
-function inferRadius(text: string, fallback?: number) {
+function inferRadius(text: string, fallback?: number, category?: AssistantCategory) {
   if (typeof fallback === "number" && Number.isFinite(fallback)) {
     return Math.max(1, Math.round(fallback));
   }
 
-  const kmMatch = text.match(/(\d{1,2})\s?(km|kilometer|kilometre|mile|miles)/i);
-  if (kmMatch) {
-    const rawDistance = Number(kmMatch[1]);
-    if (kmMatch[2].toLowerCase().startsWith("mile")) {
+  const distanceMatch = text.match(/(\d{1,2})\s?(km|kilometer|kilometre|mile|miles)/i);
+  if (distanceMatch) {
+    const rawDistance = Number(distanceMatch[1]);
+    if (distanceMatch[2].toLowerCase().startsWith("mile")) {
       return Math.max(1, Math.round(rawDistance * 1.60934));
     }
+
     return Math.max(1, Math.round(rawDistance));
+  }
+
+  if (category === "mobility" || category === "delivery") {
+    return 6;
   }
 
   return 5;
 }
 
-export function suggestSkillSlugs(input: AssistTaskInput) {
-  const text = compactWhitespace(
-    [input.title, input.description, input.transcript, input.notes].filter(Boolean).join(" "),
-  ).toLowerCase();
-  const category = inferCategory(text, input.category);
-  const matches = new Set<string>();
+function sanitizeTitleCandidate(value: string) {
+  let cleaned = compactWhitespace(value);
 
-  if (category !== "other") {
-    matches.add(category === "delivery" ? "delivery" : category);
+  for (const pattern of TITLE_PREFIX_PATTERNS) {
+    cleaned = cleaned.replace(pattern, "");
   }
 
-  for (const skill of SKILL_LIBRARY) {
-    if (skill.keywords.some((keyword) => text.includes(keyword))) {
-      matches.add(skill.slug);
-    }
+  cleaned = trimTrailingPunctuation(cleaned);
+
+  if (!cleaned) {
+    return "Help request";
   }
 
-  if (!matches.size) {
-    matches.add("errands");
-  }
-
-  return Array.from(matches).slice(0, 4);
+  return cleaned.length > 72 ? `${cleaned.slice(0, 69).trim()}...` : cleaned;
 }
 
 function defaultTitleFromText(text: string) {
@@ -204,21 +433,93 @@ function defaultTitleFromText(text: string) {
     return "Help request";
   }
 
-  const sentence = trimmed.split(/[.!?]/)[0] ?? trimmed;
-  return sentence.length > 72 ? `${sentence.slice(0, 69)}...` : sentence;
+  const sentence = trimmed.split(/[.!?\n]/)[0] ?? trimmed;
+  return sanitizeTitleCandidate(sentence);
 }
 
-function defaultDescriptionFromText(text: string, title: string) {
-  const trimmed = compactWhitespace(text);
-  if (!trimmed) {
-    return `${title}.`;
+function buildFallbackDescription(
+  combinedText: string,
+  title: string,
+  urgency: AssistantUrgency,
+  locationLabel: string,
+  notes: string,
+) {
+  const cleanedText = compactWhitespace(combinedText);
+  const cleanedNotes = compactWhitespace(notes);
+  const sentences: string[] = [];
+
+  if (cleanedText) {
+    sentences.push(toSentence(cleanedText));
+  } else {
+    sentences.push(toSentence(title));
   }
 
-  return trimmed;
+  if (locationLabel && locationLabel !== "Current device location") {
+    sentences.push(toSentence(`Meet near ${locationLabel}`));
+  } else if (locationLabel) {
+    sentences.push("Use the requester's current device location for arrival and handoff.");
+  }
+
+  if (urgency === "high" && !/asap|urgent|immediately|today|tonight|before/i.test(cleanedText)) {
+    sentences.push("This should be handled as soon as possible.");
+  } else if (urgency === "medium" && !/today|tomorrow|soon|this week/i.test(cleanedText)) {
+    sentences.push("Same-day help is preferred if possible.");
+  }
+
+  if (cleanedNotes) {
+    sentences.push(toSentence(`Additional notes: ${cleanedNotes}`));
+  }
+
+  return compactWhitespace(sentences.filter(Boolean).join(" "));
+}
+
+function normalizeSkillSlug(value: string) {
+  return compactWhitespace(value)
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-|-$/g, "");
+}
+
+function inferSkillSlugs(input: AssistTaskInput, categoryOverride?: AssistantCategory) {
+  const text = compactWhitespace([input.title, input.description, input.transcript, input.notes].filter(Boolean).join(" "));
+  const lower = text.toLowerCase();
+  const category = categoryOverride ?? inferCategory(lower, input.category);
+  const matches = new Set<string>();
+
+  const categoryProfile = CATEGORY_PROFILES.find((profile) => profile.category === category);
+  categoryProfile?.defaultSkills.forEach((skill) => matches.add(skill));
+
+  for (const skill of SKILL_LIBRARY) {
+    if (skill.keywords.some((keyword) => includesKeyword(lower, keyword))) {
+      matches.add(skill.slug);
+    }
+  }
+
+  if (!matches.size) {
+    matches.add(category === "other" ? "errands" : categoryProfile?.defaultSkills[0] ?? "errands");
+  }
+
+  return Array.from(matches).slice(0, 4);
+}
+
+export function suggestSkillSlugs(input: AssistTaskInput) {
+  return inferSkillSlugs(input);
 }
 
 function normalizeGeminiJson(rawText: string) {
-  return rawText.replace(/^```json\s*/i, "").replace(/^```\s*/i, "").replace(/```$/, "").trim();
+  return rawText.replace(/^```json\s*/i, "").replace(/^```\s*/i, "").replace(/```$/i, "").trim();
+}
+
+function categoryEnumToKey(
+  value: "ERRANDS" | "MOBILITY" | "WELLNESS" | "LEARNING" | "HOUSEHOLD" | "DELIVERY" | "OTHER",
+): AssistantCategory {
+  for (const [key, enumValue] of CATEGORY_ENUM_MAP) {
+    if (enumValue === value) {
+      return key as AssistantCategory;
+    }
+  }
+
+  return "other";
 }
 
 async function requestGeminiDraft(input: AssistTaskInput): Promise<Partial<TaskAssistDraft> | null> {
@@ -235,16 +536,28 @@ async function requestGeminiDraft(input: AssistTaskInput): Promise<Partial<TaskA
         role: "user",
         parts: [
           {
-            text: `Turn this help request into a clean JSON object for a task creation form.
-Return JSON only with these keys:
-title, description, category, taskType, urgency, tokenBudget, radiusKm, requiredSkills, notes.
+            text: `You are drafting a neighbor-help task for captains to act on quickly.
 
-Rules:
-- category must be one of errands, mobility, wellness, learning, household, delivery, other
-- taskType must be volunteer or token-funded
-- urgency must be low, medium, or high
-- requiredSkills must use slugs such as errands, senior-support, mobility, teaching, math, student-support, wellness, household, delivery
-- Keep the copy concise and polished
+Return JSON only with exactly these keys:
+title, description, category, taskType, urgency, tokenBudget, radiusKm, requiredSkills, notes
+
+Allowed values:
+- category: errands, mobility, wellness, learning, household, delivery, other
+- taskType: volunteer, token-funded
+- urgency: low, medium, high
+- requiredSkills: use only these slugs when relevant: errands, senior-support, mobility, teaching, math, student-support, wellness, household, delivery
+
+Quality rules:
+- Write a short, natural title captains can scan in seconds.
+- Write a description that explains the task clearly, including timing or sensitive details if they matter.
+- Infer the best category from the request. Do not leave it generic unless there is no stronger fit.
+- Pick urgency based on time pressure in the request.
+- If the request sounds unpaid or volunteer-based, use volunteer. If it mentions budget, pay, reward, dollars, tokens, or compensation, use token-funded.
+- Token budget should be 0 for volunteer tasks.
+- Keep notes short and useful. Leave notes empty if nothing extra is needed.
+
+Category guide:
+${CATEGORY_PROFILES.map((profile) => `- ${profile.category}: ${profile.description}`).join("\n")}
 
 Input:
 ${JSON.stringify(input, null, 2)}`,
@@ -253,7 +566,7 @@ ${JSON.stringify(input, null, 2)}`,
       },
     ],
     generationConfig: {
-      temperature: 0.2,
+      temperature: 0.15,
       responseMimeType: "application/json",
     },
   };
@@ -287,73 +600,75 @@ ${JSON.stringify(input, null, 2)}`,
   }
 
   try {
-    const parsed = JSON.parse(normalizeGeminiJson(rawText)) as Partial<TaskAssistDraft>;
-    return parsed;
+    return JSON.parse(normalizeGeminiJson(rawText)) as Partial<TaskAssistDraft>;
   } catch {
     return null;
   }
 }
 
 function normalizeTaskType(value: string | undefined, fallbackText: string): "VOLUNTEER" | "TOKEN_FUNDED" {
-  const normalized = value?.toUpperCase();
+  const normalized = compactWhitespace(value ?? "").toUpperCase().replace(/-/g, "_");
   if (normalized === "VOLUNTEER" || normalized === "TOKEN_FUNDED") {
     return normalized;
   }
 
-  return inferTaskType(fallbackText) === "volunteer" ? "VOLUNTEER" : "TOKEN_FUNDED";
+  return inferTaskType(fallbackText, value) === "volunteer" ? "VOLUNTEER" : "TOKEN_FUNDED";
 }
 
 function normalizeUrgency(value: string | undefined, fallbackText: string): "LOW" | "MEDIUM" | "HIGH" {
-  const normalized = value?.toUpperCase();
+  const normalized = compactWhitespace(value ?? "").toUpperCase();
   if (normalized === "LOW" || normalized === "MEDIUM" || normalized === "HIGH") {
     return normalized;
   }
 
-  const inferred = inferUrgency(fallbackText);
-  return inferred.toUpperCase() as "LOW" | "MEDIUM" | "HIGH";
+  return inferUrgency(fallbackText, value).toUpperCase() as "LOW" | "MEDIUM" | "HIGH";
 }
 
 function normalizeCategoryEnum(value: string | undefined, fallbackText: string) {
-  const normalized = value?.toLowerCase();
-  const allowed = new Map<string, "ERRANDS" | "MOBILITY" | "WELLNESS" | "LEARNING" | "HOUSEHOLD" | "DELIVERY" | "OTHER">([
-    ["errands", "ERRANDS"],
-    ["mobility", "MOBILITY"],
-    ["wellness", "WELLNESS"],
-    ["learning", "LEARNING"],
-    ["household", "HOUSEHOLD"],
-    ["delivery", "DELIVERY"],
-    ["other", "OTHER"],
-  ]);
-
-  return allowed.get(normalized ?? "") ?? allowed.get(inferCategory(fallbackText)) ?? "OTHER";
+  const normalized = normalizeCategory(value);
+  return CATEGORY_ENUM_MAP.get(normalized ?? inferCategory(fallbackText)) ?? "OTHER";
 }
 
 export async function assistTask(input: AssistTaskInput): Promise<TaskAssistResult> {
-  const combinedText = compactWhitespace(
-    [input.title, input.description, input.transcript, input.notes].filter(Boolean).join(" "),
-  );
+  const combinedText = compactWhitespace([input.title, input.description, input.transcript, input.notes].filter(Boolean).join(" "));
+  const fallbackCategory = inferCategory(combinedText, input.category);
+  const fallbackTitle = defaultTitleFromText(combinedText);
+  const fallbackLocationLabel = compactWhitespace(input.locationLabel || "") || "Current device location";
+  const fallbackNotes = compactWhitespace(input.notes || "");
 
   const geminiDraft = await requestGeminiDraft(input);
   const draftingProvider = geminiDraft ? "gemini" : "heuristic";
-  const fallbackTitle = defaultTitleFromText(combinedText);
-  const title = compactWhitespace(geminiDraft?.title || input.title || fallbackTitle);
-  const description = defaultDescriptionFromText(
+
+  const title = sanitizeTitleCandidate(geminiDraft?.title || input.title || fallbackTitle);
+  const taskType = normalizeTaskType(geminiDraft?.taskType || input.taskType, combinedText || title);
+  const urgency = normalizeUrgency(geminiDraft?.urgency || input.urgency, combinedText || title);
+  const category = normalizeCategoryEnum(geminiDraft?.category || input.category, combinedText || title);
+  const categoryKey = categoryEnumToKey(category) || fallbackCategory;
+  const description = buildFallbackDescription(
     geminiDraft?.description || input.description || input.transcript || title,
     title,
+    urgency.toLowerCase() as AssistantUrgency,
+    fallbackLocationLabel,
+    geminiDraft?.notes || fallbackNotes,
   );
-  const taskType = normalizeTaskType(geminiDraft?.taskType, combinedText);
-  const urgency = normalizeUrgency(geminiDraft?.urgency, combinedText);
-  const category = normalizeCategoryEnum(geminiDraft?.category, combinedText);
+
   const requiredSkills = Array.from(
     new Set(
-      (geminiDraft?.requiredSkills?.length ? geminiDraft.requiredSkills : suggestSkillSlugs(input)).map((skill) =>
-        compactWhitespace(skill.toLowerCase()),
-      ),
+      (
+        geminiDraft?.requiredSkills?.length
+          ? geminiDraft.requiredSkills.map((skill) => normalizeSkillSlug(String(skill)))
+          : inferSkillSlugs(input, categoryKey)
+      ).filter(Boolean),
     ),
   ).slice(0, 4);
+
   const tokenBudget =
     taskType === "TOKEN_FUNDED"
-      ? inferTokenBudget(combinedText, geminiDraft?.tokenBudget ?? input.tokenBudget)
+      ? inferTokenBudget(
+          combinedText,
+          geminiDraft?.tokenBudget ?? input.tokenBudget,
+          taskType === "TOKEN_FUNDED" ? "token-funded" : "volunteer",
+        )
       : 0;
 
   return {
@@ -365,12 +680,12 @@ export async function assistTask(input: AssistTaskInput): Promise<TaskAssistResu
       taskType,
       urgency,
       tokenBudget,
-      radiusKm: inferRadius(combinedText, geminiDraft?.radiusKm ?? input.radiusKm),
+      radiusKm: inferRadius(combinedText, geminiDraft?.radiusKm ?? input.radiusKm, categoryKey),
       requiredSkills,
-      locationLabel: input.locationLabel || "Current location",
+      locationLabel: fallbackLocationLabel,
       latitude: input.latitude ?? 41.8839,
       longitude: input.longitude ?? -87.6376,
-      notes: compactWhitespace(geminiDraft?.notes || input.notes || ""),
+      notes: compactWhitespace(geminiDraft?.notes || fallbackNotes),
       voiceTranscript: input.transcript ? compactWhitespace(input.transcript) : null,
     },
     providers: {
