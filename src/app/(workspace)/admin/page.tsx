@@ -1,6 +1,5 @@
-import { adminDashboard } from "@/features/dashboard/dashboard-config";
-import { DashboardPage } from "@/features/dashboard/dashboard-page";
+import { BackendStatusPage } from "@/components/backend/backend-status-page";
 
 export default function AdminPage() {
-  return <DashboardPage config={adminDashboard} />;
+  return <BackendStatusPage />;
 }

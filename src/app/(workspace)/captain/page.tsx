@@ -1,6 +1,5 @@
-import { captainDashboard } from "@/features/dashboard/dashboard-config";
-import { DashboardPage } from "@/features/dashboard/dashboard-page";
+import { BackendStatusPage } from "@/components/backend/backend-status-page";
 
 export default function CaptainPage() {
-  return <DashboardPage config={captainDashboard} />;
+  return <BackendStatusPage />;
 }
