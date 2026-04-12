@@ -6,16 +6,28 @@ import "leaflet.heat";
 
 const CHICAGO_CENTER = [41.8781, -87.6298];
 
+function applyViewportBias(map) {
+  const containerWidth = map.getContainer()?.clientWidth ?? 0;
+
+  if (!containerWidth) {
+    return;
+  }
+
+  map.panBy([-Math.round(containerWidth * 0.1), 0], { animate: false });
+}
+
 function syncMapViewport(map, points) {
   map.invalidateSize({ pan: false, debounceMoveend: true });
 
   if (!points.length) {
-    map.setView(CHICAGO_CENTER, 11, { animate: false });
+    map.setView(CHICAGO_CENTER, 10, { animate: false });
+    applyViewportBias(map);
     return;
   }
 
   if (points.length === 1) {
-    map.setView([points[0].latitude, points[0].longitude], 11, { animate: false });
+    map.setView([points[0].latitude, points[0].longitude], 10, { animate: false });
+    applyViewportBias(map);
     return;
   }
 
@@ -38,9 +50,11 @@ function syncMapViewport(map, points) {
     map.fitBounds(bounds.pad(0.28), { animate: false });
   }
 
-  if (map.getZoom() > 11) {
-    map.setZoom(11, { animate: false });
+  if (map.getZoom() > 10) {
+    map.setZoom(10, { animate: false });
   }
+
+  applyViewportBias(map);
 }
 
 function DemandHeatLayer({ points }) {
@@ -65,8 +79,8 @@ function DemandHeatLayer({ points }) {
     layerRef.current = L.heatLayer(
       points.map((point) => [point.latitude, point.longitude, point.map_weight || 1]),
       {
-        radius: 30,
-        blur: 26,
+        radius: 34,
+        blur: 30,
         maxZoom: 16,
         minOpacity: 0.4,
         max: strongestWeight,
@@ -143,15 +157,15 @@ export default function CaptainDemandMap({ points }) {
   return (
     <MapContainer
       center={CHICAGO_CENTER}
-      zoom={11}
+      zoom={10}
       scrollWheelZoom={false}
       zoomControl={false}
       attributionControl={false}
       preferCanvas
-      className="absolute inset-0 h-full w-full bg-[#f5f1ed]"
+      className="h-full w-full bg-[#eef2f5]"
     >
       <TileLayer
-        url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+        url="https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png"
         detectRetina
         keepBuffer={4}
         updateWhenIdle={false}

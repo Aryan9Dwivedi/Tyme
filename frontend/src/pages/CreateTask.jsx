@@ -134,7 +134,8 @@ function createAssistSignature(formState) {
 }
 
 function isCurrentDeviceLocationLabel(value) {
-  return !value || value.trim() === "Current device location";
+  const normalized = value?.trim().toLowerCase();
+  return !normalized || ["current device location", "current location", "live pin", "near you"].includes(normalized);
 }
 
 function mergeVoiceAssistIntoForm(current, payload, skillsTouched) {
@@ -193,7 +194,7 @@ export default function CreateTask() {
   const [form, setForm] = useState(createEmptyForm);
   const [locationMode, setLocationMode] = useState("device");
   const [locationStatus, setLocationStatus] = useState(
-    "Checking your device location so captains start from the right area.",
+    "We will match captains around your live pin.",
   );
   const [isRecording, setIsRecording] = useState(false);
   const [skillsTouched, setSkillsTouched] = useState(false);
@@ -367,13 +368,13 @@ export default function CreateTask() {
           longitude: current.longitude ?? Number(position.coords.longitude.toFixed(6)),
           locationLabel:
             usingDeviceLocation || isCurrentDeviceLocationLabel(current.locationLabel)
-              ? "Current device location"
+              ? "Live pin"
               : current.locationLabel,
         }));
-        setLocationStatus("Your current location is ready and matching will use it automatically.");
+        setLocationStatus("Live pin ready. Matching will use your latest coordinates.");
       },
       () => {
-        setLocationStatus("We could not read your device location. You can still type a meeting point manually.");
+        setLocationStatus("We could not read your live pin yet. You can still enter a meeting point manually.");
       },
       { enableHighAccuracy: true, timeout: 10000 },
     );
@@ -726,7 +727,7 @@ export default function CreateTask() {
       return;
     }
 
-    setLocationStatus("Refreshing your current location...");
+    setLocationStatus("Refreshing your live pin...");
     navigator.geolocation.getCurrentPosition(
       (position) => {
         setForm((current) => ({
@@ -735,12 +736,12 @@ export default function CreateTask() {
           longitude: Number(position.coords.longitude.toFixed(6)),
           locationLabel:
             usingDeviceLocation || isCurrentDeviceLocationLabel(current.locationLabel)
-              ? "Current device location"
+              ? "Live pin"
               : current.locationLabel,
         }));
-        setLocationStatus("Current location refreshed. Matching will use the latest pin.");
+        setLocationStatus("Live pin refreshed. Matching will use the latest coordinates.");
       },
-      () => setLocationStatus("We could not refresh your device location."),
+      () => setLocationStatus("We could not refresh your live pin."),
       { enableHighAccuracy: true, timeout: 10000 },
     );
   };
@@ -751,7 +752,7 @@ export default function CreateTask() {
       if (nextMode === "device") {
         return {
           ...current,
-          locationLabel: "Current device location",
+          locationLabel: "Live pin",
         };
       }
 
@@ -763,9 +764,9 @@ export default function CreateTask() {
     setLocationStatus(
       nextMode === "device"
         ? hasDeviceLocation
-          ? "Your current location is ready and matching will use it automatically."
-          : "Checking your current location so captains start in the right area."
-        : "Add a clear address or meeting point so captains know exactly where to head.",
+          ? "Live pin ready. Matching will use your latest coordinates."
+          : "We are checking your live pin now."
+        : "Add the clearest address or meeting point so captains know exactly where to head.",
     );
   };
 
@@ -1030,7 +1031,7 @@ export default function CreateTask() {
                         : "border-border bg-white text-ink-secondary hover:border-teal/30"
                     }`}
                   >
-                    Use current location
+                    Use live pin
                   </button>
                   <button
                     type="button"
@@ -1041,7 +1042,7 @@ export default function CreateTask() {
                         : "border-border bg-white text-ink-secondary hover:border-teal/30"
                     }`}
                   >
-                    Add address
+                    Enter address
                   </button>
                 </div>
 
@@ -1053,31 +1054,21 @@ export default function CreateTask() {
                       </div>
                       <div className="min-w-0 flex-1">
                         <div className="text-sm font-semibold text-ink">
-                          {hasDeviceLocation ? "Current location ready" : "Finding your location"}
+                          {hasDeviceLocation ? "Live pin ready" : "Finding your live pin"}
                         </div>
                         <p className="mt-1 text-sm leading-relaxed text-ink-secondary">{locationStatus}</p>
-                        <div className="mt-3 grid gap-2 sm:grid-cols-2">
-                          <div className="rounded-2xl border border-border bg-white px-3 py-3">
-                            <div className="text-[10px] font-semibold uppercase tracking-[0.16em] text-ink-tertiary">
-                              Matching source
-                            </div>
-                            <div className="mt-1 text-sm font-medium text-ink">
-                              {hasDeviceLocation ? "Live device pin" : "Waiting for location"}
-                            </div>
+                        <div className="mt-3 flex flex-wrap gap-2">
+                          <div className="rounded-full border border-border bg-white px-3 py-2 text-xs font-medium text-ink">
+                            {hasDeviceLocation ? "Nearby matching enabled" : "Waiting for signal"}
                           </div>
-                          <div className="rounded-2xl border border-border bg-white px-3 py-3">
-                            <div className="text-[10px] font-semibold uppercase tracking-[0.16em] text-ink-tertiary">
-                              Coordinates
-                            </div>
-                            <div className="mt-1 text-sm font-medium text-ink">
-                              {hasDeviceLocation
-                                ? `${form.latitude?.toFixed(4)}, ${form.longitude?.toFixed(4)}`
-                                : "Adding your latest position..."}
-                            </div>
+                          <div className="rounded-full border border-border bg-white px-3 py-2 text-xs font-medium text-ink">
+                            {hasDeviceLocation
+                              ? `${form.latitude?.toFixed(4)}, ${form.longitude?.toFixed(4)}`
+                              : "Updating coordinates..."}
                           </div>
                         </div>
                         <p className="mt-3 text-xs text-ink-tertiary">
-                          Switch to a typed address if you want captains to meet you somewhere else.
+                          Need a different meetup point? Switch to Enter address.
                         </p>
                       </div>
                     </div>

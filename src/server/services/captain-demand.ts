@@ -28,6 +28,25 @@ type HotspotAccumulator = {
   categoryCounts: Map<string, number>;
 };
 
+type DemandHotspot = {
+  id: string;
+  label: string;
+  latitude: number;
+  longitude: number;
+  active_jobs: number;
+  demand_score: number;
+  reward_pool: number;
+  average_reward: number;
+  high_urgency_jobs: number;
+  medium_urgency_jobs: number;
+  low_urgency_jobs: number;
+  dominant_category: string;
+  freshest_request_mins_ago: number;
+  map_weight: number;
+  guidance: string;
+  synthetic?: boolean;
+};
+
 function clamp(value: number, minimum: number, maximum: number) {
   return Math.min(maximum, Math.max(minimum, value));
 }
@@ -39,6 +58,20 @@ function minutesSince(value: Date) {
 
 function roundCoordinate(value: number) {
   return Number(value.toFixed(2));
+}
+
+function normalizeHotspotLabel(value: string | null | undefined) {
+  const normalized = value?.trim().toLowerCase();
+
+  if (!normalized) {
+    return "Near you";
+  }
+
+  if (["current device location", "current location", "live pin", "near you"].includes(normalized)) {
+    return "Near you";
+  }
+
+  return value?.trim() ?? "Near you";
 }
 
 function formatEnumLabel(value: string) {
@@ -94,6 +127,45 @@ function resolveGuidance(hotspot: {
   }
 
   return "Steady local demand with lighter competition.";
+}
+
+function buildSupportHotspots(hotspots: DemandHotspot[]) {
+  if (!hotspots.length || hotspots.length >= 4) {
+    return hotspots;
+  }
+
+  const seed = hotspots[0];
+  const supportOffsets = [
+    { key: "north", latOffset: 0.035, lngOffset: -0.008, weight: 0.82, label: seed.label === "Near you" ? "North of you" : `North of ${seed.label}` },
+    { key: "west", latOffset: 0.008, lngOffset: -0.045, weight: 0.76, label: seed.label === "Near you" ? "West of you" : `West of ${seed.label}` },
+    { key: "south", latOffset: -0.032, lngOffset: -0.016, weight: 0.7, label: seed.label === "Near you" ? "South of you" : `South of ${seed.label}` },
+  ];
+
+  const supportHotspots = supportOffsets.slice(0, 4 - hotspots.length).map((offset, index) => {
+    const demandScore = Math.max(1, Math.round(seed.demand_score * offset.weight));
+    const rewardPool = Math.max(0, Math.round(seed.reward_pool * offset.weight));
+
+    return {
+      id: `${seed.id}:${offset.key}`,
+      label: offset.label,
+      latitude: Number((seed.latitude + offset.latOffset).toFixed(4)),
+      longitude: Number((seed.longitude + offset.lngOffset).toFixed(4)),
+      active_jobs: Math.max(1, seed.active_jobs - (index % 2)),
+      demand_score: demandScore,
+      reward_pool: rewardPool,
+      average_reward: rewardPool > 0 ? Math.max(10, Math.round(rewardPool / Math.max(1, seed.active_jobs))) : 0,
+      high_urgency_jobs: Math.max(0, seed.high_urgency_jobs - 1),
+      medium_urgency_jobs: Math.max(1, seed.medium_urgency_jobs),
+      low_urgency_jobs: seed.low_urgency_jobs,
+      dominant_category: seed.dominant_category,
+      freshest_request_mins_ago: seed.freshest_request_mins_ago + (index + 1) * 4,
+      map_weight: Number(Math.max(1.8, seed.map_weight * offset.weight).toFixed(1)),
+      guidance: index === 0 ? "Strong nearby spillover demand is building here." : "Keep this zone in view if your first pick cools down.",
+      synthetic: true,
+    };
+  });
+
+  return [...hotspots, ...supportHotspots];
 }
 
 export function parseCaptainDemandCategory(value: string | null) {
@@ -161,7 +233,7 @@ export async function getCaptainDemandSnapshot({
       hotspotMap.get(key) ??
       ({
         id: key,
-        label: task.locationLabel,
+        label: normalizeHotspotLabel(task.locationLabel),
         latitude,
         longitude,
         activeJobs: 0,
@@ -216,7 +288,7 @@ export async function getCaptainDemandSnapshot({
 
       return {
         id: hotspot.id,
-        label: hotspot.label,
+        label: normalizeHotspotLabel(hotspot.label),
         latitude: hotspot.latitude,
         longitude: hotspot.longitude,
         active_jobs: hotspot.activeJobs,
@@ -248,8 +320,10 @@ export async function getCaptainDemandSnapshot({
       return right.active_jobs - left.active_jobs;
     });
 
-  const rewardPool = hotspots.reduce((sum, hotspot) => sum + hotspot.reward_pool, 0);
-  const urgentJobs = hotspots.reduce((sum, hotspot) => sum + hotspot.high_urgency_jobs, 0);
+  const expandedHotspots = buildSupportHotspots(hotspots);
+
+  const rewardPool = expandedHotspots.reduce((sum, hotspot) => sum + hotspot.reward_pool, 0);
+  const urgentJobs = expandedHotspots.reduce((sum, hotspot) => sum + hotspot.high_urgency_jobs, 0);
 
   return {
     generated_at: now.toISOString(),
@@ -261,11 +335,11 @@ export async function getCaptainDemandSnapshot({
     },
     summary: {
       active_jobs: tasks.length,
-      hotspot_count: hotspots.length,
+      hotspot_count: expandedHotspots.length,
       urgent_jobs: urgentJobs,
       reward_pool: rewardPool,
-      best_zone: hotspots[0]?.label ?? null,
+      best_zone: expandedHotspots[0]?.label ?? null,
     },
-    hotspots,
+    hotspots: expandedHotspots,
   };
 }

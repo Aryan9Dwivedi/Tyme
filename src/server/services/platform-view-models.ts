@@ -23,6 +23,20 @@ function avatarUrl(name: string, seed: string) {
   return `https://ui-avatars.com/api/?name=${encodeURIComponent(name)}&background=0f766e&color=ffffff&bold=true&rounded=true&size=128&seed=${encodeURIComponent(seed)}`;
 }
 
+function normalizeLocationLabel(value: string | null | undefined) {
+  const normalized = value?.trim().toLowerCase();
+
+  if (!normalized) {
+    return "Live pin";
+  }
+
+  if (["current device location", "current location", "live pin", "near you"].includes(normalized)) {
+    return "Live pin";
+  }
+
+  return value?.trim() ?? "Live pin";
+}
+
 export function averageRating(ratings: Array<{ score: number }> | null | undefined) {
   if (!ratings?.length) {
     return 0;
@@ -92,7 +106,7 @@ export function taskViewFromRecord(task: any) {
     status: task.status,
     urgency: task.urgency,
     token_budget: task.tokenBudget,
-    location_address: task.locationLabel,
+    location_address: normalizeLocationLabel(task.locationLabel),
     latitude: task.latitude,
     longitude: task.longitude,
     radius_km: task.radiusKm,
@@ -144,7 +158,7 @@ export function opportunityViewFromOffer(offer: any, recommendation: any) {
     token_budget: offer.task.tokenBudget,
     task_type: offer.task.taskType,
     status: offer.task.status,
-    location_address: offer.task.locationLabel,
+    location_address: normalizeLocationLabel(offer.task.locationLabel),
     radius_km: offer.task.radiusKm,
     posted_mins_ago: minutesSince(offer.task.requestedAt ?? offer.task.createdAt),
     distance_km: recommendation?.distanceKm ?? 0,
@@ -170,7 +184,7 @@ export function assignmentViewFromRecord(assignment: any) {
     task_type: assignment.task.taskType,
     status: assignment.task.status,
     assignment_status: assignment.status,
-    location_address: assignment.task.locationLabel,
+    location_address: normalizeLocationLabel(assignment.task.locationLabel),
     radius_km: assignment.task.radiusKm,
     required_skills:
       assignment.task.requiredSkills?.map((link: any) => link.skill.label ?? titleCase(link.skill.slug)) ??

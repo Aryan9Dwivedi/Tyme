@@ -175,16 +175,16 @@ export default function CaptainDemandPanel() {
           <div className="flex items-center justify-between border-b border-border px-5 py-4">
             <div>
               <h3 className="font-semibold text-ink">Live demand map</h3>
-              <p className="text-xs text-ink-tertiary">Hotter zones mean more live work and better payout density.</p>
+              <p className="text-xs text-ink-tertiary">Live requests and nearby demand pockets update here in real time.</p>
             </div>
             {topHotspot && (
               <div className="hidden rounded-full bg-rose-50 px-3 py-1 text-xs font-medium text-rose-700 md:inline-flex">
-                Go to {topHotspot.label}
+                Focus on {topHotspot.label}
               </div>
             )}
           </div>
 
-          <div className="relative h-[360px] overflow-hidden bg-[#f5f1ed] md:h-[420px]">
+          <div className="relative h-[420px] overflow-hidden bg-[#eef2f5] md:h-[520px]">
             {heatmapQuery.isLoading && !hotspots.length ? (
               <div className="flex h-full items-center justify-center px-6 text-sm text-ink-tertiary">
                 Loading your best next zones...
