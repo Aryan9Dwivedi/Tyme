@@ -5,12 +5,6 @@
 - Tailwind CSS
 - Route handlers for auth, health, and recommendations
 
-## Project Links
-
-- [SETUP.md](./SETUP.md)
-- [FLOW.md](./FLOW.md)
-- [TASK.md](./TASK.md)
-
 ## Repo Structure
 
 ```text
@@ -57,16 +51,9 @@ npm run frontend:check
 npm run frontend:build
 ```
 
-## Vercel Env Split
+## Deployment Notes
 
-- Backend Vercel project: `DATABASE_URL`, `DIRECT_URL` (optional), `AUTH_SECRET`, `CORS_ALLOW_ORIGIN`, `GEMINI_API_KEY`, `GEMINI_MODEL` (optional), `ELEVENLABS_API_KEY`, `ELEVENLABS_SPEECH_MODEL` (optional)
-- Frontend Vercel project: `VITE_API_BASE_URL` only
-
-## Local URLs
-
-- Backend: `http://127.0.0.1:3000`
-- Frontend: `http://127.0.0.1:4173`
-
-## Rename Point
-
-If you want to rename the product later, change the core constants in `src/lib/constants/project.ts`.
+- Backend Vercel project: set the root directory to `/`
+- Frontend Vercel project: set the root directory to `frontend`
+- Backend envs: `DATABASE_URL`, `AUTH_SECRET`, `CORS_ALLOW_ORIGIN`, `GEMINI_API_KEY`, `ELEVENLABS_API_KEY`
+- Frontend env: `VITE_API_BASE_URL`

@@ -107,8 +107,8 @@ export function DashboardPage({ config }: { config: DashboardConfig }) {
               Contribution reminder
             </p>
             <p className="mt-3 text-sm leading-7 text-muted">
-              Before merging work from this lane, run the checks, keep the
-              branch focused, and add a short log entry in `TASK.md`.
+              Before merging work from this lane, run the checks and keep the
+              branch focused on one shippable piece at a time.
             </p>
           </article>
         </aside>
